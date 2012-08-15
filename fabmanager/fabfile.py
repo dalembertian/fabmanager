@@ -47,6 +47,7 @@ WSGI_CONF          = CONFIG_DIR+'/wsgi_%(virtualenv)s.py'
 
 # MySQL
 MYSQL_PREFIX       = 'mysql -u root -p -e %s'
+PIP_INSTALL_PREFIX = 'pip install -r config/required-packages.pip'
 
 # Aliases for common tasks at server
 ALIASES = dict(
@@ -133,7 +134,7 @@ def update():
     """
     branch = env.project.get('git_branch', 'master')
     with settings(hide('warnings'), warn_only=True):
-        remote('git pull origin %s && django-admin.py migrate && touch config/wsgi*' % branch)
+        remote('git pull origin %s && django-admin.py syncdb && django-admin.py migrate && touch config/wsgi*' % branch)
 
 def status():
     """
@@ -272,6 +273,8 @@ def setup():
     _setup_apache()
     _setup_mysql()
 
+    # Finish installation
+    remote(PIP_INSTALL_PREFIX)
     # TODO: create more setup tasks:
     #   - pip install
     #   - syncdb, migrate
@@ -289,17 +292,16 @@ def _setup_virtualenv():
 
 def _clone_gitrepo():
     """Clones project git repo into virtualenv"""
+    branch = env.project.get('git_branch', 'master')
     if files.exists(_interpolate(DJANGO_PROJECT_DIR)):
         print _interpolate('project %(project)s already exists, updating')
-        update()
+        remote('git pull origin %s' % branch)
     else:
         with cd(_interpolate(VIRTUALENV_DIR)):
             run(_interpolate('git clone %(git_repo)s %(project)s'))
-            branch = env.project.get('git_branch', 'master')
             if branch != 'master':
-                with cd(env.project['project']):
-                    run('git fetch origin %s:%s' % (branch, branch))
-                    run('git checkout %s' % branch)
+                remote('git fetch origin %s:%s' % (branch, branch))
+                remote('git checkout %s' % branch)
 
 def _setup_apache():
     """Configures Apache"""
