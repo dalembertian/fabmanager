@@ -33,6 +33,13 @@ DJANGO_PREFIX      = "export PYTHONPATH=%(workon)s/%(virtualenv)s:%(workon)s/%(v
                      "DJANGO_SETTINGS_MODULE=%(project)s.%(settings)s && " \
                      "source %(workon)s/%(virtualenv)s/bin/activate"
 
+# Apache
+MEDIA_DIR          = '%(workon)s/%(virtualenv)s/%(project)s/media'
+STATIC_DIR         = '%(workon)s/%(virtualenv)s/%(project)s/static'
+FAVICON_DIR        = '%(workon)s/%(virtualenv)s/%(project)s/static/img'
+ROBOTS_DIR         = '%(workon)s/%(virtualenv)s/%(project)s/config'
+WSGI_DIR           = '%(workon)s/%(virtualenv)s/%(project)s/%%s'
+
 # Aliases for common tasks at server
 ALIASES = dict(
     gs='git status',
@@ -108,40 +115,26 @@ def apache(wsgi_file):
     _require_environment()
 
     # Dictionary for interpolating template
-    virtualenv_dir    = _interpolate(VIRTUALENV_DIR)
-    project_dir       = _interpolate(DJANGO_PROJECT_DIR)
-    site_packages_dir = SITE_PACKAGES_DIR % _python_version()
     wsgi_dir          = os.path.dirname(wsgi_file)
-
-    host_aliases = env.project.get('host_aliases', '')
+    host_aliases      = env.project.get('host_aliases', '')
     if host_aliases:
-        host_aliases = 'ServerAlias %s' % host_aliases
-
+        host_aliases  = 'ServerAlias %s' % host_aliases
 
     variables = {
         'host':             env.project['host'],
         'host_aliases':     host_aliases,
-        'static_admin_dir': '%s/%s/django/contrib/admin/media' % (virtualenv_dir, site_packages_dir),
-        'media_dir':        '%s/media' % project_dir,
-        'static_dir':       '%s/static' % project_dir,
-        'favicon_dir':      '%s/static/img' % project_dir,
-        'robots_dir':       '%s/config' % project_dir,
-        'wsgi_file':        wsgi_file,
-        'wsgi_dir':         wsgi_dir,
-#        'wsgi_file':        '%s/config/%s' % project_dir,
-#        'wsgi_dir':         '%s/config' % project_dir,
+        'static_admin_dir': '%s/%s/django/contrib/admin/media' % (_interpolate(VIRTUALENV_DIR), SITE_PACKAGES_DIR % _python_version()),
+        'media_dir':        _interpolate(MEDIA_DIR),
+        'static_dir':       _interpolate(STATIC_DIR),
+        'favicon_dir':      _interpolate(FAVICON_DIR),
+        'robots_dir':       _interpolate(ROBOTS_DIR),
+        'wsgi_dir':         _interpolate(WSGI_DIR) % wsgi_dir,
+        'wsgi_file':        _interpolate(WSGI_DIR) % wsgi_file,
     }
 
     with open(os.path.join(templates_dir, 'apache.conf'), 'r') as input:
         for line in input:
             print line % variables,
-
-#    Alias /static/admin/ "/opt/whitehat/python-environments/sbpsp/lib/python2.6/site-packages/django/contrib/admin/media/"
-#    Alias /media/ "/opt/whitehat/python-environments/sbpsp/sbpsp/media/"
-#    Alias /static/ "/opt/whitehat/python-environments/sbpsp/sbpsp/static/"
-#    Alias /favicon.ico  %STATIC_DIR/img/favicon.ico
-#    Alias /robots.txt   %DJANGO_PROJECT_DIR/config/robots.txt
-#    WSGIScriptAlias / "/opt/whitehat/python-environments/sbpsp/sbpsp/config/wsgi_sbpsp.py"
 
 def wsgi():
     """Generates WSGI conf file"""
@@ -162,7 +155,7 @@ def wsgi():
 
 def remote(command='gs'):
     """
-    Issues generic command at project's directory
+    Issues a generic command at project's directory
     """
     _require_environment()
     with prefix(_django_prefix()):
@@ -229,7 +222,7 @@ def backup():
                 get('%s.tar.gz' % dirname, '../backup')
 
 def setup():
-    """Sets up new environment"""
+    """Sets up a new environment"""
     _require_environment()
     _setup_virtualenv()
     _setup_gitrepo()
