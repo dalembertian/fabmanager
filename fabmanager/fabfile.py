@@ -270,7 +270,7 @@ def _setup_virtualenv():
         print 'virtualenv %s already exists' % env.environment
     else:
         with prefix(_virtualenvwrapper_prefix()):
-            run(_interpolate('mkvirtualenv %(virtualenv)s'))
+            run(_interpolate('mkvirtualenv --no-site-packages %(virtualenv)s'))
             with hide('commands'):
                 print 'virtualenv %s created with python %s\n' % (env.environment, run(GET_PYTHON_VERSION))
 
