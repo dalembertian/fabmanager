@@ -4,7 +4,7 @@ import os, sys, site
 apache_configuration = os.path.dirname(os.path.abspath(__file__))
 project              = os.path.dirname(apache_configuration)
 workspace            = os.path.dirname(project)
-site_packages        = os.path.dirname(os.path.join(workspace, '%(site_packages)s'))
+site_packages        = os.path.dirname(os.path.join(workspace, '%(site_packages)s/'))
 
 # Directories to add to sys.path
 ALLDIRS = [site_packages, workspace, project]
