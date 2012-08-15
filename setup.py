@@ -47,6 +47,6 @@ setup(
     description='Standard (fabric) fabfile.py to be used by Introspection Software projects',
     license='BSD',
     url='https://github.com/raltimari/fabmanager',
-    long_description=read('README'),
+    long_description=read('README.rst'),
     **extra
 )
