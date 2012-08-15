@@ -12,6 +12,9 @@ from fabric.contrib import django
 from fabric.contrib import files
 from fabric.contrib import console
 
+from django.conf import settings as django_settings
+
+
 # Paths related to fabmanager
 fabmanager_dir = os.path.dirname(os.path.abspath(__file__))
 templates_dir  = os.path.join(fabmanager_dir, 'templates/fabmanager/')
@@ -41,6 +44,9 @@ STATIC_DIR         = '%(workon)s/%(virtualenv)s/%(project)s/static'
 FAVICON_DIR        = '%(workon)s/%(virtualenv)s/%(project)s/static/img'
 APACHE_CONF        = CONFIG_DIR+'/apache_%(virtualenv)s.conf'
 WSGI_CONF          = CONFIG_DIR+'/wsgi_%(virtualenv)s.py'
+
+# MySQL
+MYSQL_PREFIX       = 'mysql -u root -p -e %s'
 
 # Aliases for common tasks at server
 ALIASES = dict(
@@ -84,7 +90,7 @@ def _virtualenvwrapper_prefix():
 
 def _python_version():
     """Checks python version on remote virtualenv"""
-    with settings(hide('commands'), warn_only=True):
+    with settings(hide('commands', 'warnings'), warn_only=True):
         with prefix(_django_prefix()):
             result = run(GET_PYTHON_VERSION)
             if result.failed:
@@ -126,7 +132,7 @@ def update():
     Updates server from git pull
     """
     branch = env.project.get('git_branch', 'master')
-    with settings(warn_only=True):
+    with settings(hide('warnings'), warn_only=True):
         remote('git pull origin %s && django-admin.py migrate && touch config/wsgi*' % branch)
 
 def status():
@@ -143,13 +149,13 @@ def python():
 def backup():
     """
     Backup server's database and copy tar.gz to local ../backup dir
+    TODO: create a restore task
     """
     _require_environment()
 
-    # Uses local settings to extract username/password to access remote database
+    # Uses local Django settings to extract username/password to access remote database
     django.settings_module(env.project['settings'])
-    from django.conf import settings
-    database = settings.DATABASES['default']
+    database = django_settings.DATABASES['default']
 
     # Remote side
     with prefix(_django_prefix()):
@@ -256,9 +262,8 @@ def setup():
     _setup_virtualenv()
     _clone_gitrepo()
     _setup_apache()
+    _setup_mysql()
     # TODO: create more setup tasks:
-    #   - setup MySQL
-    #   - import MySQL database
     #   - create aux dirs (logs, etc.)
     #   - pip install
     #   - syncdb, migrate
@@ -277,7 +282,7 @@ def _setup_virtualenv():
 def _clone_gitrepo():
     """Clones project git repo into virtualenv"""
     if files.exists(_interpolate(DJANGO_PROJECT_DIR)):
-#        print _interpolate('project %(project)s already exists')
+        print _interpolate('project %(project)s already exists, updating')
         update()
     else:
         with cd(_interpolate(VIRTUALENV_DIR)):
@@ -295,3 +300,15 @@ def _setup_apache():
     else:
         sudo(_interpolate('ln -s %s /etc/apache2/sites-enabled/%%(virtualenv)s' % APACHE_CONF))
         sudo('apache2ctl restart')
+
+def _setup_mysql():
+    """Creates MySQL database according to env's settings.py"""
+    # Uses local Django settings to extract username/password to access remote database
+    django.settings_module(env.project['settings'])
+    database = django_settings.DATABASES['default']
+
+    # Create database & user, if not already there
+    with settings(hide('warnings'), warn_only=True):
+        result = run(MYSQL_PREFIX % "\"CREATE DATABASE %(NAME)s DEFAULT CHARACTER SET utf8;\"" % database)
+        if result.succeeded:
+            run(MYSQL_PREFIX % "\"GRANT ALL ON %(NAME)s.* TO '%(USER)s'@'localhost' IDENTIFIED BY '%(PASSWORD)s';\"" % database)
