@@ -118,9 +118,9 @@ def _parse_alias(command):
 
 # Remote commands
 
-def remote(command='gs'):
+def remote(command):
     """
-    Issues a generic command at project's directory
+    Issues a generic command at project's directory level
     """
     _require_environment()
     with prefix(_django_prefix()):
@@ -258,13 +258,21 @@ def setup():
     if not os.path.exists('config/wsgi_%s.py' % env.environment):
         abort('There is no WSGI conf for %s - use task "wsgi" to generate one, and commit' % env.environment)
 
-    # Configures remote server
+    # Configures virtualenv and clones git repo
     _setup_virtualenv()
     _clone_gitrepo()
+
+    # Issues extra commands at project's level, if any
+    extra_commands = env.project.get('extra_commands', [])
+    with settings(hide('warnings'), warn_only=True):
+        for command in extra_commands:
+            remote(command)
+
+    # Sets up Apache, MySQL
     _setup_apache()
     _setup_mysql()
+
     # TODO: create more setup tasks:
-    #   - create aux dirs (logs, etc.)
     #   - pip install
     #   - syncdb, migrate
     #   - collectstatic
