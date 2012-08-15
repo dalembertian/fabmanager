@@ -5,6 +5,7 @@
 
 import os
 import datetime
+import cStringIO
 
 from fabric.api import *
 from fabric.contrib import django
@@ -34,11 +35,12 @@ DJANGO_PREFIX      = "export PYTHONPATH=%(workon)s/%(virtualenv)s:%(workon)s/%(v
                      "source %(workon)s/%(virtualenv)s/bin/activate"
 
 # Apache
+CONFIG_DIR         = '%(workon)s/%(virtualenv)s/%(project)s/config'
 MEDIA_DIR          = '%(workon)s/%(virtualenv)s/%(project)s/media'
 STATIC_DIR         = '%(workon)s/%(virtualenv)s/%(project)s/static'
 FAVICON_DIR        = '%(workon)s/%(virtualenv)s/%(project)s/static/img'
-ROBOTS_DIR         = '%(workon)s/%(virtualenv)s/%(project)s/config'
-WSGI_DIR           = '%(workon)s/%(virtualenv)s/%(project)s/%%s'
+APACHE_CONF        = CONFIG_DIR+'/apache_%(virtualenv)s.conf'
+WSGI_CONF          = CONFIG_DIR+'/wsgi_%(virtualenv)s.py'
 
 # Aliases for common tasks at server
 ALIASES = dict(
@@ -108,49 +110,6 @@ def _parse_alias(command):
     else:
         return '%s %s' % (ALIASES[words[0]], ' '.join(words[1:]))
 
-# Local commands
-
-def apache(wsgi_file):
-    """Generates Apache conf file. Requires: path to WSGI conf file."""
-    _require_environment()
-
-    # Dictionary for interpolating template
-    wsgi_dir          = os.path.dirname(wsgi_file)
-    host_aliases      = env.project.get('host_aliases', '')
-    if host_aliases:
-        host_aliases  = 'ServerAlias %s' % host_aliases
-
-    variables = {
-        'host':             env.project['host'],
-        'host_aliases':     host_aliases,
-        'static_admin_dir': '%s/%s/django/contrib/admin/media' % (_interpolate(VIRTUALENV_DIR), SITE_PACKAGES_DIR % _python_version()),
-        'media_dir':        _interpolate(MEDIA_DIR),
-        'static_dir':       _interpolate(STATIC_DIR),
-        'favicon_dir':      _interpolate(FAVICON_DIR),
-        'robots_dir':       _interpolate(ROBOTS_DIR),
-        'wsgi_dir':         _interpolate(WSGI_DIR) % wsgi_dir,
-        'wsgi_file':        _interpolate(WSGI_DIR) % wsgi_file,
-    }
-
-    with open(os.path.join(templates_dir, 'apache.conf'), 'r') as input:
-        for line in input:
-            print line % variables,
-
-def wsgi():
-    """Generates WSGI conf file"""
-    _require_environment()
-
-    # Dictionary for interpolating template
-    variables = {
-        'project': env.project['project'],
-        'settings': env.project['settings'],
-        'site_packages': SITE_PACKAGES_DIR % _python_version(),
-    }
-
-    with open(os.path.join(templates_dir, 'wsgi.py'), 'r') as input:
-        for line in input:
-            print line % variables,
-
 # Remote commands
 
 def remote(command='gs'):
@@ -167,7 +126,8 @@ def update():
     Updates server from git pull
     """
     branch = env.project.get('git_branch', 'master')
-    remote('git pull origin %s && django-admin.py migrate && touch config/wsgi*' % branch)
+    with settings(warn_only=True):
+        remote('git pull origin %s && django-admin.py migrate && touch config/wsgi*' % branch)
 
 def status():
     """
@@ -221,26 +181,104 @@ def backup():
             if console.confirm('Download backup?'):
                 get('%s.tar.gz' % dirname, '../backup')
 
+def _generate_conf(conf_file, variables):
+    """Generates conf file from template, and optionally saves it"""
+    # File names
+    filename_parts = conf_file.split('.')
+    filename_parts.insert(1, env.environment)
+    input_file = os.path.join(templates_dir, conf_file)
+    output_file = 'config/%s_%s.%s' % tuple(filename_parts)
+
+    # Generate conf file from template
+    conf = ''
+    output = cStringIO.StringIO()
+    try:
+        with open(input_file, 'r') as input:
+            for line in input:
+                output.write(line % variables)
+        conf = output.getvalue()
+    finally:
+        output.close()
+
+    # Shows conf file and optionally saves it
+    print conf
+    if console.confirm('Save to %s?' % output_file, default=False):
+        with open(output_file, 'w') as output:
+            output.write(conf)
+
+def apache():
+    """Generates Apache conf file. Requires: path to WSGI conf file."""
+    _require_environment()
+
+    # Dictionary for interpolating template
+    config_dir        = _interpolate(CONFIG_DIR)
+    host_aliases      = env.project.get('host_aliases', '')
+    if host_aliases:
+        host_aliases  = 'ServerAlias %s' % host_aliases
+
+    variables = {
+        'host':             env.project['host'],
+        'host_aliases':     host_aliases,
+        'static_admin_dir': '%s/%s/django/contrib/admin/media' % (_interpolate(VIRTUALENV_DIR), SITE_PACKAGES_DIR % _python_version()),
+        'media_dir':        _interpolate(MEDIA_DIR),
+        'static_dir':       _interpolate(STATIC_DIR),
+        'favicon_dir':      _interpolate(FAVICON_DIR),
+        'config_dir':       config_dir,
+        'wsgi_file':        '%s/wsgi_%s.py' % (config_dir, env.environment),
+    }
+    _generate_conf('apache.conf', variables)
+
+def wsgi():
+    """Generates WSGI conf file"""
+    _require_environment()
+
+    # Dictionary for interpolating template
+    variables = {
+        'project': env.project['project'],
+        'settings': env.project['settings'],
+        'site_packages': SITE_PACKAGES_DIR % _python_version(),
+        }
+    _generate_conf('wsgi.py', variables)
+
 def setup():
     """Sets up a new environment"""
     _require_environment()
+
+    # Checks if needed conf files for this environment already exist
+    if not os.path.exists('settings_%s.py' % env.environment):
+        abort('There is no settings.py for %s - create one, and commit' % env.environment)
+    if not os.path.exists('config/apache_%s.conf' % env.environment):
+        abort('There is no Apache conf for %s - use task "apache" to generate one, and commit' % env.environment)
+    if not os.path.exists('config/wsgi_%s.py' % env.environment):
+        abort('There is no WSGI conf for %s - use task "wsgi" to generate one, and commit' % env.environment)
+
+    # Configures remote server
     _setup_virtualenv()
-    _setup_gitrepo()
+    _clone_gitrepo()
+    _setup_apache()
+    # TODO: create more setup tasks:
+    #   - setup MySQL
+    #   - import MySQL database
+    #   - create aux dirs (logs, etc.)
+    #   - pip install
+    #   - syncdb, migrate
+    #   - collectstatic
 
 def _setup_virtualenv():
     """Creates virtualenv for environment"""
     if files.exists(_interpolate(VIRTUALENV_DIR)):
-        print _interpolate('virtualenv %(virtualenv)s already exists')
+        print 'virtualenv %s already exists' % env.environment
     else:
         with prefix(_virtualenvwrapper_prefix()):
             run(_interpolate('mkvirtualenv %(virtualenv)s'))
             with hide('commands'):
                 print 'virtualenv %s created with python %s\n' % (env.environment, run(GET_PYTHON_VERSION))
 
-def _setup_gitrepo():
+def _clone_gitrepo():
     """Clones project git repo into virtualenv"""
     if files.exists(_interpolate(DJANGO_PROJECT_DIR)):
-        print _interpolate('project %(project)s already exists')
+#        print _interpolate('project %(project)s already exists')
+        update()
     else:
         with cd(_interpolate(VIRTUALENV_DIR)):
             run(_interpolate('git clone %(git_repo)s %(project)s'))
@@ -249,3 +287,11 @@ def _setup_gitrepo():
                 with cd(env.project['project']):
                     run('git fetch origin %s:%s' % (branch, branch))
                     run('git checkout %s' % branch)
+
+def _setup_apache():
+    """Configures Apache"""
+    if files.exists(_interpolate('/etc/apache2/sites-enabled/%(virtualenv)s')):
+        print 'Apache conf for %s already exists' % env.environment
+    else:
+        sudo(_interpolate('ln -s %s /etc/apache2/sites-enabled/%%(virtualenv)s' % APACHE_CONF))
+        sudo('apache2ctl restart')
