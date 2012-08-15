@@ -7,7 +7,17 @@ fabmanager
 
 .. _fabmanager-synopsis:
 
-fabmanager is a set of useful tasks to be used with Fabric, is a Python tool for application deployment and systems administration over SSH.
+fabmanager is a set of useful tasks to be used with Fabric, is a Python tool for application deployment and systems administration over SSH. It provides the backbone for commands such as::
+
+    setup   Sets up a new environment
+    status  Checks git log and status
+    python  Tries to figure out Python version on server side
+    update  Updates server from git pull
+    apache  Generates Apache conf file. Requires: path to WSGI conf file.
+    wsgi    Generates WSGI conf file
+    backup  Backup server's database and copy tar.gz to local ../backup dir
+    remote  Issues a generic command at project's directory
+
 
 .. contents::
     :local:
@@ -73,16 +83,16 @@ An empty ENVS dictionary is defined by fabmanager/fabfile.py. Each project's fab
             'settings': 'settings',
             etc.
 
-Below is a complete list of parameters. All are mandatory except when noted:
+Below is a complete list of parameters. All are mandatory except when noted::
 
-host        Name or IP of the remote server
-host_alias  (optional) Host alias(es), separated by ' ', for Apache conf file
-workon      Parent of the virtualenv directory (equals virtualenvwrapper WORKON_HOME)
-virtualenv  Virtualenv name
-project     Project name. Actual project location is thus given by $workon/$virtualenv/$project
-settings    settings.py being used (e.g.: 'settings', 'settings_custom')
-git_repo    (optional) Git repo, mandatory if setup is being made by fabmanager
-git_branch  (optional) If not provided, 'master' is assumed
+    host        Name or IP of the remote server
+    host_alias  (optional) Host alias(es), separated by ' ', for Apache conf file
+    workon      Parent of the virtualenv directory (equals virtualenvwrapper WORKON_HOME)
+    virtualenv  Virtualenv name
+    project     Project name. Actual project location is thus given by $workon/$virtualenv/$project
+    settings    settings.py being used (e.g.: 'settings', 'settings_custom')
+    git_repo    (optional) Git repo, mandatory if setup is being made by fabmanager
+    git_branch  (optional) If not provided, 'master' is assumed
 
 
 .. _fabmanager-todo:
