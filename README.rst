@@ -7,7 +7,7 @@ fabmanager
 
 .. _fabmanager-synopsis:
 
-fabmanager is a set of useful tasks to be used with Fabric, is a Python tool for application deployment and systems administration over SSH. It provides the backbone for commands such as::
+fabmanager is a set of useful tasks to be used with Fabric, a Python tool for application deployment and systems administration over SSH. It provides the backbone for commands such as::
 
     setup   Sets up a new environment
     status  Checks git log and status
@@ -19,11 +19,19 @@ fabmanager is a set of useful tasks to be used with Fabric, is a Python tool for
     remote  Issues a generic command at project's directory
 
 
+fabmanager currently depends on fabric (of course!), virtualenv, virtualenvwrapper, git, MySQL.
+
+
+.. _fabmanager-contents:
+
+Contents
+========
+
 .. contents::
     :local:
 
-.. _fabmanager-installation:
 
+.. _fabmanager-installation:
 
 Installation
 ============
