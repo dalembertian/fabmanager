@@ -134,7 +134,13 @@ def update():
     """
     branch = env.project.get('git_branch', 'master')
     with settings(hide('warnings'), warn_only=True):
-        remote('git pull origin %s && django-admin.py syncdb && django-admin.py migrate && touch config/wsgi*' % branch)
+        remote(
+            'git pull origin %s && '
+            'django-admin.py syncdb --noinput && '
+            'django-admin.py migrate && '
+            'django-admin.py collectstatic --noinput && '
+            'touch config/wsgi*'
+        % branch)
 
 def status():
     """
@@ -275,10 +281,7 @@ def setup():
 
     # Finish installation
     remote(PIP_INSTALL_PREFIX)
-    # TODO: create more setup tasks:
-    #   - pip install
-    #   - syncdb, migrate
-    #   - collectstatic
+    update()
 
 def _setup_virtualenv():
     """Creates virtualenv for environment"""
