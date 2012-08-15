@@ -110,6 +110,7 @@ To Do List
 ==========
 
 * Remove dependency on virtualenvwrapper
+* Replace use of __file__ to locate templates (not PEP-302 compliant) with calls to pkg_resources
 
 .. _fabmanager-license:
 
