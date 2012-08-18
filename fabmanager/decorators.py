@@ -1,19 +1,13 @@
 # encoding: utf-8
-# Fabmanager decorators
+# Useful decorators
 
 from fabric.api import *
 
-# These variables must be defined at the actual fabfile.py
-# Address of the proxy server intermediating the executation
-#env.proxy_server = ''
-
-# Location, at the proxy server, where fabfily.py will reside
-#env.proxy_home = ''
-
-# List of hosts and/or roles specified for this session - will
-# be included in the fab command executed at the proxy server
-#env.proxy_hosts = []
-#env.proxy_roles = []
+# These variables must be defined in the actual fabfile.py for the proxy decorators:
+# env.proxy_server = 'proxy.com.br'     Address of the proxy server intermediating the executation
+# env.proxy_home   = '/home/me/fabric'  Location, at the proxy server, where fabfily.py will reside
+# env.proxy_hosts  = []                 List of hosts and/or roles specified for this session - will
+# env.proxy_roles  = []                   be included in the fab command executed at the proxy server
 
 def _is_running_on_proxy():
     """
