@@ -8,8 +8,8 @@ from fabric.api import *
 # These variables must be defined in the actual fabfile.py for the proxy decorators:
 # env.proxy_server = 'proxy.com.br'     Address of the proxy server intermediating the executation
 # env.proxy_home   = '/home/me/fabric'  Location, at the proxy server, where fabfily.py will reside
-# env.proxy_hosts  = []                 List of hosts and/or roles specified for this session - will
-# env.proxy_roles  = []                   be included in the fab command executed at the proxy server
+# env.proxy_host   = 'somehost'         Host or role specified for this session - will be included
+# env.proxy_role   = 'somerole'           in the fab command executed at the proxy server
 
 def _is_running_on_proxy():
     """
@@ -32,8 +32,8 @@ def _run_on_proxy(role=None, host=None):
     so the task will be initially run at the proxy.
 
     Then the @_run_on_proxy decorator can be used with or without specifying the actual
-    servers where the task should be run. If no servers are specifyied, then the lists
-    env.proxy_roles or env.proxy_hosts should be previously populated by some other task.
+    servers where the task should be run. If no servers are specifyied, then the params
+    env.proxy_role or env.proxy_host should be previously populated by some other task.
     """
     def actual_decorator(task):
         """
@@ -52,16 +52,16 @@ def _run_on_proxy(role=None, host=None):
                 # task is to be run. Hosts/roles specified by the decorator itself
                 # have higher priority.
 
-                # If a role or host parameter was specified for the decorator, use them
+                # If a role or host parameter was specified for the decorator, use it
                 if role:
                     kwargs['role'] = role
                 elif host:
                     kwargs['host'] = host
-                # If some previous task populated the lists env.proxy_roles or proxy_hosts, use them
-                elif env.proxy_roles:
-                    kwargs['role'] = env.proxy_roles[0]
-                elif env.proxy_hosts:
-                    kwargs['host'] = env.proxy_hosts[0]
+                # If some previous task populated env.proxy_role or proxy_host, use it
+                elif env.proxy_role:
+                    kwargs['role'] = env.proxy_role
+                elif env.proxy_host:
+                    kwargs['host'] = env.proxy_host
 
                 with cd(env.proxy_home):
                     arguments = []
