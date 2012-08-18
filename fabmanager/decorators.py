@@ -1,6 +1,8 @@
 # encoding: utf-8
 # Useful decorators
 
+from functools import wraps
+
 from fabric.api import *
 
 # These variables must be defined in the actual fabfile.py for the proxy decorators:
@@ -35,8 +37,10 @@ def _run_on_proxy(role=None, host=None):
     """
     def actual_decorator(task):
         """
-        Actual decorator that routes the task to be run on proxy.
+        Actual decorator that routes the task to be run on proxy. It is iself decorated
+        with @wraps in order to keep the original task documentation (docstring).
         """
+        @wraps(task)
         def wrapper(*args, **kwargs):
             """
             Wrapper that checks if command is being run on proxy server.
