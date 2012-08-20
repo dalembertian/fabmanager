@@ -219,7 +219,14 @@ def _generate_conf(conf_file, variables):
         with open(output_file, 'w') as output:
             output.write(conf)
 
-def apache():
+def apache_restart():
+    """
+    Restarts Apache
+    """
+    _require_environment()
+    sudo('apache2ctl restart')
+
+def apache_conf():
     """Generates Apache conf file. Requires: path to WSGI conf file."""
     _require_environment()
 
@@ -241,7 +248,7 @@ def apache():
     }
     _generate_conf('apache.conf', variables)
 
-def wsgi():
+def wsgi_conf():
     """Generates WSGI conf file"""
     _require_environment()
 
@@ -261,9 +268,9 @@ def setup():
     if not os.path.exists('settings_%s.py' % env.environment):
         abort('There is no settings.py for %s - create one, and commit' % env.environment)
     if not os.path.exists('config/apache_%s.conf' % env.environment):
-        abort('There is no Apache conf for %s - use task "apache" to generate one, and commit' % env.environment)
+        abort('There is no Apache conf for %s - use task "apache_conf" to generate one, and commit' % env.environment)
     if not os.path.exists('config/wsgi_%s.py' % env.environment):
-        abort('There is no WSGI conf for %s - use task "wsgi" to generate one, and commit' % env.environment)
+        abort('There is no WSGI conf for %s - use task "wsgi_conf" to generate one, and commit' % env.environment)
 
     # Configures virtualenv and clones git repo
     _setup_virtualenv()
