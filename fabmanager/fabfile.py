@@ -64,7 +64,9 @@ ALIASES = dict(
     mng='django-admin.py',
 )
 
-# Setup commands
+##################
+# Setup commands #
+##################
 
 def _setup_environment(environment):
     """
@@ -82,30 +84,6 @@ def _interpolate(string):
     """Interpolates string with dictionary provided by ENVS"""
     return string % env.project
 
-def _virtualenvwrapper_prefix():
-    """Prefix to be able to invoke virtualenvwrapper commands"""
-    return VIRTUALENVWRAPPER_PREFIX % {
-        'workon': env.project['workon'],
-        'script': VIRTUALENVWRAPPER_SCRIPT,
-    }
-
-def _python_version():
-    """Checks python version on remote virtualenv"""
-    with settings(hide('commands', 'warnings'), warn_only=True):
-        with prefix(_django_prefix()):
-            result = run(GET_PYTHON_VERSION)
-            if result.failed:
-                abort('Could not determine Python version at virtualenv %s' % env.environment)
-    return result
-
-def _django_prefix():
-    """Prefix to wrap commands with necessary virtualenv and variables"""
-    return _interpolate(DJANGO_PREFIX)
-
-def _django_project_dir():
-    """Path to current project' directory"""
-    return _interpolate(DJANGO_PROJECT_DIR)
-
 def _parse_alias(command):
     """
     Mimics a bash alias: if command starts with a word that is present in ALIASES
@@ -117,7 +95,160 @@ def _parse_alias(command):
     else:
         return '%s %s' % (ALIASES[words[0]], ' '.join(words[1:]))
 
-# Remote commands
+def _generate_conf(conf_file, variables):
+    """Generates conf file from template, and optionally saves it"""
+    # File names
+    filename_parts = conf_file.split('.')
+    filename_parts.insert(1, env.environment)
+    input_file = os.path.join(templates_dir, conf_file)
+    output_file = 'config/%s_%s.%s' % tuple(filename_parts)
+
+    # Generate conf file from template
+    conf = ''
+    output = cStringIO.StringIO()
+    try:
+        with open(input_file, 'r') as input:
+            for line in input:
+                output.write(line % variables)
+        conf = output.getvalue()
+    finally:
+        output.close()
+
+    # Shows conf file and optionally saves it
+    print conf
+    if console.confirm('Save to %s?' % output_file, default=False):
+        with open(output_file, 'w') as output:
+            output.write(conf)
+
+##################
+# MySQL commands #
+##################
+
+def _setup_mysql():
+    """Creates MySQL database according to env's settings.py"""
+    # Uses local Django settings to extract username/password to access remote database
+    django.settings_module(env.project['settings'])
+    database = django_settings.DATABASES['default']
+
+    # Create database & user, if not already there
+    with settings(hide('warnings'), warn_only=True):
+        result = run(MYSQL_PREFIX % "\"CREATE DATABASE %(NAME)s DEFAULT CHARACTER SET utf8;\"" % database)
+        if result.succeeded:
+            run(MYSQL_PREFIX % "\"GRANT ALL ON %(NAME)s.* TO '%(USER)s'@'localhost' IDENTIFIED BY '%(PASSWORD)s';\"" % database)
+
+###################
+# Apache commands #
+###################
+
+def _setup_apache():
+    """Configures Apache"""
+    if files.exists(_interpolate('/etc/apache2/sites-enabled/%(virtualenv)s')):
+        print 'Apache conf for %s already exists' % env.environment
+    else:
+        sudo(_interpolate('ln -s %s /etc/apache2/sites-enabled/%%(virtualenv)s' % APACHE_CONF))
+        sudo('apache2ctl restart')
+
+def apache_conf():
+    """Generates Apache conf file. Requires: path to WSGI conf file."""
+    _require_environment()
+
+    # Dictionary for interpolating template
+    config_dir        = _interpolate(CONFIG_DIR)
+    host_aliases      = env.project.get('host_aliases', '')
+    if host_aliases:
+        host_aliases  = 'ServerAlias %s' % host_aliases
+
+    variables = {
+        'host':             env.project['host'],
+        'host_aliases':     host_aliases,
+        'static_admin_dir': '%s/%s/django/contrib/admin/media' % (_interpolate(VIRTUALENV_DIR), SITE_PACKAGES_DIR % _python_version()),
+        'media_dir':        _interpolate(MEDIA_DIR),
+        'static_dir':       _interpolate(STATIC_DIR),
+        'favicon_dir':      _interpolate(FAVICON_DIR),
+        'config_dir':       config_dir,
+        'wsgi_file':        '%s/wsgi_%s.py' % (config_dir, env.environment),
+        }
+    _generate_conf('apache.conf', variables)
+
+def wsgi_conf():
+    """Generates WSGI conf file"""
+    _require_environment()
+
+    # Dictionary for interpolating template
+    variables = {
+        'project': env.project['project'],
+        'settings': env.project['settings'],
+        'site_packages': SITE_PACKAGES_DIR % _python_version(),
+        }
+    _generate_conf('wsgi.py', variables)
+
+def apache_restart():
+    """
+    Restarts Apache
+    """
+    _require_environment()
+    sudo('apache2ctl restart')
+
+
+###################
+# Python commands #
+###################
+
+def _python_version():
+    """Checks python version on remote virtualenv"""
+    with settings(hide('commands', 'warnings'), warn_only=True):
+        with prefix(_django_prefix()):
+            result = run(GET_PYTHON_VERSION)
+            if result.failed:
+                abort('Could not determine Python version at virtualenv %s' % env.environment)
+    return result
+
+def _virtualenvwrapper_prefix():
+    """Prefix to be able to invoke virtualenvwrapper commands"""
+    return VIRTUALENVWRAPPER_PREFIX % {
+        'workon': env.project['workon'],
+        'script': VIRTUALENVWRAPPER_SCRIPT,
+        }
+
+def _setup_virtualenv():
+    """Creates virtualenv for environment"""
+    if files.exists(_interpolate(VIRTUALENV_DIR)):
+        print 'virtualenv %s already exists' % env.environment
+    else:
+        with prefix(_virtualenvwrapper_prefix()):
+            run(_interpolate('mkvirtualenv --no-site-packages %(virtualenv)s'))
+            with hide('commands'):
+                print 'virtualenv %s created with python %s\n' % (env.environment, run(GET_PYTHON_VERSION))
+
+def python():
+    """Tries to figure out Python version on server side"""
+    _require_environment()
+    print 'Python version on virtualenv %s: %s' % (env.environment, _python_version())
+
+#############################
+# (Django) project commands #
+#############################
+
+def _django_prefix():
+    """Prefix to wrap commands with necessary virtualenv and variables"""
+    return _interpolate(DJANGO_PREFIX)
+
+def _django_project_dir():
+    """Path to current project' directory"""
+    return _interpolate(DJANGO_PROJECT_DIR)
+
+def _clone_gitrepo():
+    """Clones project git repo into virtualenv"""
+    branch = env.project.get('git_branch', 'master')
+    if files.exists(_interpolate(DJANGO_PROJECT_DIR)):
+        print _interpolate('project %(project)s already exists, updating')
+        remote('git pull origin %s' % branch)
+    else:
+        with cd(_interpolate(VIRTUALENV_DIR)):
+            run(_interpolate('git clone %(git_repo)s %(project)s'))
+            if branch != 'master':
+                remote('git fetch origin %s:%s' % (branch, branch))
+                remote('git checkout %s' % branch)
 
 def remote(command):
     """
@@ -127,6 +258,42 @@ def remote(command):
     with prefix(_django_prefix()):
         with cd(_django_project_dir()):
             run(_parse_alias(command))
+
+def setup():
+    """Sets up a new environment"""
+    _require_environment()
+
+    # Checks if needed conf files for this environment already exist
+    if not os.path.exists('settings_%s.py' % env.environment):
+        abort('There is no settings.py for %s - create one, and commit' % env.environment)
+    if not os.path.exists('config/apache_%s.conf' % env.environment):
+        abort('There is no Apache conf for %s - use task "apache_conf" to generate one, and commit' % env.environment)
+    if not os.path.exists('config/wsgi_%s.py' % env.environment):
+        abort('There is no WSGI conf for %s - use task "wsgi_conf" to generate one, and commit' % env.environment)
+
+    # Configures virtualenv and clones git repo
+    _setup_virtualenv()
+    _clone_gitrepo()
+
+    # Issues extra commands at project's level, if any
+    extra_commands = env.project.get('extra_commands', [])
+    with settings(hide('warnings'), warn_only=True):
+        for command in extra_commands:
+            remote(command)
+
+    # Sets up Apache, MySQL
+    _setup_apache()
+    _setup_mysql()
+
+    # Finish installation
+    remote(PIP_INSTALL_PREFIX)
+    update()
+
+def status():
+    """
+    Checks git log and status
+    """
+    remote('glogg -n 20 && echo "" && git status')
 
 def update():
     """
@@ -141,17 +308,6 @@ def update():
             'django-admin.py collectstatic --noinput && '
             'touch config/wsgi*'
         % branch)
-
-def status():
-    """
-    Checks git log and status
-    """
-    remote('glogg -n 20 && echo "" && git status')
-
-def python():
-    """Tries to figure out Python version on server side"""
-    _require_environment()
-    print 'Python version on virtualenv %s: %s' % (env.environment, _python_version())
 
 def backup():
     """
@@ -194,141 +350,3 @@ def backup():
             if console.confirm('Download backup?'):
                 get('%s.tar.gz' % dirname, '../backup')
 
-def _generate_conf(conf_file, variables):
-    """Generates conf file from template, and optionally saves it"""
-    # File names
-    filename_parts = conf_file.split('.')
-    filename_parts.insert(1, env.environment)
-    input_file = os.path.join(templates_dir, conf_file)
-    output_file = 'config/%s_%s.%s' % tuple(filename_parts)
-
-    # Generate conf file from template
-    conf = ''
-    output = cStringIO.StringIO()
-    try:
-        with open(input_file, 'r') as input:
-            for line in input:
-                output.write(line % variables)
-        conf = output.getvalue()
-    finally:
-        output.close()
-
-    # Shows conf file and optionally saves it
-    print conf
-    if console.confirm('Save to %s?' % output_file, default=False):
-        with open(output_file, 'w') as output:
-            output.write(conf)
-
-def apache_restart():
-    """
-    Restarts Apache
-    """
-    _require_environment()
-    sudo('apache2ctl restart')
-
-def apache_conf():
-    """Generates Apache conf file. Requires: path to WSGI conf file."""
-    _require_environment()
-
-    # Dictionary for interpolating template
-    config_dir        = _interpolate(CONFIG_DIR)
-    host_aliases      = env.project.get('host_aliases', '')
-    if host_aliases:
-        host_aliases  = 'ServerAlias %s' % host_aliases
-
-    variables = {
-        'host':             env.project['host'],
-        'host_aliases':     host_aliases,
-        'static_admin_dir': '%s/%s/django/contrib/admin/media' % (_interpolate(VIRTUALENV_DIR), SITE_PACKAGES_DIR % _python_version()),
-        'media_dir':        _interpolate(MEDIA_DIR),
-        'static_dir':       _interpolate(STATIC_DIR),
-        'favicon_dir':      _interpolate(FAVICON_DIR),
-        'config_dir':       config_dir,
-        'wsgi_file':        '%s/wsgi_%s.py' % (config_dir, env.environment),
-    }
-    _generate_conf('apache.conf', variables)
-
-def wsgi_conf():
-    """Generates WSGI conf file"""
-    _require_environment()
-
-    # Dictionary for interpolating template
-    variables = {
-        'project': env.project['project'],
-        'settings': env.project['settings'],
-        'site_packages': SITE_PACKAGES_DIR % _python_version(),
-        }
-    _generate_conf('wsgi.py', variables)
-
-def setup():
-    """Sets up a new environment"""
-    _require_environment()
-
-    # Checks if needed conf files for this environment already exist
-    if not os.path.exists('settings_%s.py' % env.environment):
-        abort('There is no settings.py for %s - create one, and commit' % env.environment)
-    if not os.path.exists('config/apache_%s.conf' % env.environment):
-        abort('There is no Apache conf for %s - use task "apache_conf" to generate one, and commit' % env.environment)
-    if not os.path.exists('config/wsgi_%s.py' % env.environment):
-        abort('There is no WSGI conf for %s - use task "wsgi_conf" to generate one, and commit' % env.environment)
-
-    # Configures virtualenv and clones git repo
-    _setup_virtualenv()
-    _clone_gitrepo()
-
-    # Issues extra commands at project's level, if any
-    extra_commands = env.project.get('extra_commands', [])
-    with settings(hide('warnings'), warn_only=True):
-        for command in extra_commands:
-            remote(command)
-
-    # Sets up Apache, MySQL
-    _setup_apache()
-    _setup_mysql()
-
-    # Finish installation
-    remote(PIP_INSTALL_PREFIX)
-    update()
-
-def _setup_virtualenv():
-    """Creates virtualenv for environment"""
-    if files.exists(_interpolate(VIRTUALENV_DIR)):
-        print 'virtualenv %s already exists' % env.environment
-    else:
-        with prefix(_virtualenvwrapper_prefix()):
-            run(_interpolate('mkvirtualenv --no-site-packages %(virtualenv)s'))
-            with hide('commands'):
-                print 'virtualenv %s created with python %s\n' % (env.environment, run(GET_PYTHON_VERSION))
-
-def _clone_gitrepo():
-    """Clones project git repo into virtualenv"""
-    branch = env.project.get('git_branch', 'master')
-    if files.exists(_interpolate(DJANGO_PROJECT_DIR)):
-        print _interpolate('project %(project)s already exists, updating')
-        remote('git pull origin %s' % branch)
-    else:
-        with cd(_interpolate(VIRTUALENV_DIR)):
-            run(_interpolate('git clone %(git_repo)s %(project)s'))
-            if branch != 'master':
-                remote('git fetch origin %s:%s' % (branch, branch))
-                remote('git checkout %s' % branch)
-
-def _setup_apache():
-    """Configures Apache"""
-    if files.exists(_interpolate('/etc/apache2/sites-enabled/%(virtualenv)s')):
-        print 'Apache conf for %s already exists' % env.environment
-    else:
-        sudo(_interpolate('ln -s %s /etc/apache2/sites-enabled/%%(virtualenv)s' % APACHE_CONF))
-        sudo('apache2ctl restart')
-
-def _setup_mysql():
-    """Creates MySQL database according to env's settings.py"""
-    # Uses local Django settings to extract username/password to access remote database
-    django.settings_module(env.project['settings'])
-    database = django_settings.DATABASES['default']
-
-    # Create database & user, if not already there
-    with settings(hide('warnings'), warn_only=True):
-        result = run(MYSQL_PREFIX % "\"CREATE DATABASE %(NAME)s DEFAULT CHARACTER SET utf8;\"" % database)
-        if result.succeeded:
-            run(MYSQL_PREFIX % "\"GRANT ALL ON %(NAME)s.* TO '%(USER)s'@'localhost' IDENTIFIED BY '%(PASSWORD)s';\"" % database)
