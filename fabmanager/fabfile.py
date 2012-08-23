@@ -22,32 +22,38 @@ templates_dir  = os.path.join(fabmanager_dir, 'templates/fabmanager/')
 # Environments - to be extended with ENVS.update()
 ENVS = {}
 
+# Linux
+REMOTE_USER_PASSWORD = '1ntr05p3ct10n'
+GIT_VERSION          ='1.7.10.3'
+GET_GIT_VERSION      = "git --version | cut -d ' ' -f 3"
+
 # Python
-GET_PYTHON_VERSION = "python -V 2>&1 | cut -f2 -d' ' | cut -f-2 -d."
+GET_PYTHON_VERSION  = "python -V 2>&1 | cut -f2 -d' ' | cut -f-2 -d."
 
 # virtualenvwrapper
 VIRTUALENVWRAPPER_SCRIPT = '/usr/local/bin/virtualenvwrapper.sh'
 VIRTUALENVWRAPPER_PREFIX = 'export WORKON_HOME=%(workon)s && source %(script)s'
 
 # Django strings should be interpolated by ENVS[project]
-VIRTUALENV_DIR     = '%(workon)s/%(virtualenv)s'
-SITE_PACKAGES_DIR  = 'lib/python%s/site-packages'
-DJANGO_PROJECT_DIR = "%(workon)s/%(virtualenv)s/%(project)s"
-DJANGO_PREFIX      = "export PYTHONPATH=%(workon)s/%(virtualenv)s:%(workon)s/%(virtualenv)s/%(project)s " \
-                     "DJANGO_SETTINGS_MODULE=%(project)s.%(settings)s && " \
-                     "source %(workon)s/%(virtualenv)s/bin/activate"
+VIRTUALENV_DIR      = '%(workon)s/%(virtualenv)s'
+SITE_PACKAGES_DIR   = 'lib/python%s/site-packages'
+DJANGO_PROJECT_DIR  = "%(workon)s/%(virtualenv)s/%(project)s"
+DJANGO_PREFIX       = "export PYTHONPATH=%(workon)s/%(virtualenv)s:%(workon)s/%(virtualenv)s/%(project)s " \
+                      "DJANGO_SETTINGS_MODULE=%(project)s.%(settings)s && " \
+                      "source %(workon)s/%(virtualenv)s/bin/activate"
 
 # Apache
-CONFIG_DIR         = '%(workon)s/%(virtualenv)s/%(project)s/config'
-MEDIA_DIR          = '%(workon)s/%(virtualenv)s/%(project)s/media'
-STATIC_DIR         = '%(workon)s/%(virtualenv)s/%(project)s/static'
-FAVICON_DIR        = '%(workon)s/%(virtualenv)s/%(project)s/static/img'
-APACHE_CONF        = CONFIG_DIR+'/apache_%(virtualenv)s.conf'
-WSGI_CONF          = CONFIG_DIR+'/wsgi_%(virtualenv)s.py'
+CONFIG_DIR          = '%(workon)s/%(virtualenv)s/%(project)s/config'
+MEDIA_DIR           = '%(workon)s/%(virtualenv)s/%(project)s/media'
+STATIC_DIR          = '%(workon)s/%(virtualenv)s/%(project)s/static'
+FAVICON_DIR         = '%(workon)s/%(virtualenv)s/%(project)s/static/images'
+APACHE_CONF         = CONFIG_DIR+'/apache_%(environment)s.conf'
+WSGI_CONF           = CONFIG_DIR+'/wsgi_%(environment)s.py'
 
 # MySQL
-MYSQL_PREFIX       = 'mysql -u root -p -e %s'
-PIP_INSTALL_PREFIX = 'pip install -r config/required-packages.pip'
+MYSQL_ROOT_PASSWORD = '1ntr05p3ct10n'
+MYSQL_PREFIX        = 'mysql -u root -p%s -e %%s' % MYSQL_ROOT_PASSWORD
+PIP_INSTALL_PREFIX  = 'pip install -r config/required-packages.pip'
 
 # Aliases for common tasks at server
 ALIASES = dict(
@@ -73,8 +79,12 @@ def _setup_environment(environment):
     Sets up env variables for this session
     """
     env.environment = environment
-    env.project = ENVS[environment]
-    env.hosts = [env.project['host']]
+    env.project     = ENVS[environment]
+    env.hosts       = [env.project['host']]
+    env.user        = env.project.get('user', env.local_user)
+    env.password    = env.project.get('password', None)
+    # Redundant, just to easy the interpolation later on
+    env.project['environment'] = environment
 
 def _require_environment():
     """Checks if env.environment and env.host exist"""
@@ -121,10 +131,71 @@ def _generate_conf(conf_file, variables):
             output.write(conf)
 
 ##################
+# Linux commands #
+##################
+
+def adduser():
+    """Creates remote user with the same name as the local user, and uploads ~/.ssh/id_rsa*"""
+    _require_environment()
+    env.remote_home = '/home/%s' % env.local_user
+    env.remote_password = REMOTE_USER_PASSWORD
+
+    # Connects as root (or sudoer)
+    user = prompt('Remote username?', default='root')
+    env.user = user
+    env.password = None
+
+    # Creates user with same name as local_user, if it doesn't exist already
+    if files.exists(env.remote_home):
+        print 'User %(local_user)s already exists on %(environment)s!' % env
+    else:
+        # TODO: generate password -p%(remote_password)s with [m]crypt
+        sudo('useradd -d%(remote_home)s -s/bin/bash -m -U %(local_user)s' % env)
+        sudo('passwd rubens')
+        # TODO: not all distributions use group sudo for sudoers (e.g.: old Ubuntu uses admin)
+        # TODO: sudoers should not have to use password
+        sudo('adduser %(local_user)s sudo' % env)
+        sudo('mkdir %(remote_home)s/.ssh' % env)
+        put('~/.ssh/id_rsa.pub', '%(remote_home)s/.ssh/authorized_keys' % env, use_sudo=True, mode=0644)
+        put('~/.ssh/id_rsa', '%(remote_home)s/.ssh/id_rsa' % env, use_sudo=True, mode=0600)
+        sudo('chown -R %(local_user)s:%(local_user)s %(remote_home)s/.ssh' % env)
+
+    # Continues as newly created user
+    env.user = env.local_user
+    env.password = None
+
+def install_git():
+    """Installs (recent) git from source"""
+    git_version = sudo(GET_GIT_VERSION)
+    if git_version != GIT_VERSION:
+        git_file = 'git-%s' % GIT_VERSION
+        sudo('apt-get -y -qq install build-essential')
+        sudo('apt-get -y -qq install git-core')
+        sudo('apt-get -y -qq install libcurl4-gnutls-dev')
+        sudo('apt-get -y -qq install libexpat1-dev')
+        sudo('apt-get -y -qq install gettext')
+        sudo('apt-get -y -qq install libz-dev')
+        sudo('apt-get -y -qq install libssl-dev')
+        sudo('wget --quiet http://git-core.googlecode.com/files/%s.tar.gz' % git_file)
+        sudo('tar -xzf %s.tar.gz' % git_file)
+        with cd(git_file):
+            sudo('make --silent prefix=/usr/local all > /dev/null')
+            sudo('make --silent prefix=/usr/local install  > /dev/null')
+
+def apt_get_update():
+    """Updates apt-get repositories"""
+    sudo('apt-get update')
+
+##################
 # MySQL commands #
 ##################
 
-def _setup_mysql():
+def install_mysql():
+    """Installs MySQL"""
+    sudo('DEBIAN_FRONTEND=noninteractive apt-get -y -qq install mysql-server libmysqlclient-dev')
+    sudo('mysqladmin -u root password %s' % MYSQL_ROOT_PASSWORD)
+
+def _setup_project_mysql():
     """Creates MySQL database according to env's settings.py"""
     # Uses local Django settings to extract username/password to access remote database
     django.settings_module(env.project['settings'])
@@ -140,15 +211,19 @@ def _setup_mysql():
 # Apache commands #
 ###################
 
-def _setup_apache():
+def install_apache():
+    """Installs Apache and mod_wsgi"""
+    sudo ('apt-get -y -qq install apache2 apache2-mpm-worker libapache2-mod-wsgi')
+
+def _apache_setup_project():
     """Configures Apache"""
     if files.exists(_interpolate('/etc/apache2/sites-enabled/%(virtualenv)s')):
-        print 'Apache conf for %s already exists' % env.environment
+        print 'Apache conf for %(environment)s already exists' % env
     else:
         sudo(_interpolate('ln -s %s /etc/apache2/sites-enabled/%%(virtualenv)s' % APACHE_CONF))
         sudo('apache2ctl restart')
 
-def apache_conf():
+def generate_apache_conf():
     """Generates Apache conf file. Requires: path to WSGI conf file."""
     _require_environment()
 
@@ -161,7 +236,7 @@ def apache_conf():
     variables = {
         'host':             env.project['host'],
         'host_aliases':     host_aliases,
-        'static_admin_dir': '%s/%s/django/contrib/admin/media' % (_interpolate(VIRTUALENV_DIR), SITE_PACKAGES_DIR % _python_version()),
+        'static_admin_dir': '%s/%s/django/contrib/admin/media' % (_interpolate(VIRTUALENV_DIR), SITE_PACKAGES_DIR % _get_python_version()),
         'media_dir':        _interpolate(MEDIA_DIR),
         'static_dir':       _interpolate(STATIC_DIR),
         'favicon_dir':      _interpolate(FAVICON_DIR),
@@ -170,7 +245,7 @@ def apache_conf():
         }
     _generate_conf('apache.conf', variables)
 
-def wsgi_conf():
+def generate_wsgi_conf():
     """Generates WSGI conf file"""
     _require_environment()
 
@@ -178,7 +253,7 @@ def wsgi_conf():
     variables = {
         'project': env.project['project'],
         'settings': env.project['settings'],
-        'site_packages': SITE_PACKAGES_DIR % _python_version(),
+        'site_packages': SITE_PACKAGES_DIR % _get_python_version(),
         }
     _generate_conf('wsgi.py', variables)
 
@@ -194,13 +269,29 @@ def apache_restart():
 # Python commands #
 ###################
 
-def _python_version():
+def install_python():
+    """Installs Python, setuptools, pip, virtualenv, virtualenvwrapper"""
+    _require_environment()
+    # TODO: Install Python 2.7.3 from source, regardless of Python distribution
+    sudo('apt-get -y -qq install python python2.6 python2.6-dev pkg-config gcc')
+    sudo('apt-get -y -qq install python-setuptools')
+    sudo('easy_install virtualenv')
+    sudo('easy_install pip')
+    sudo('pip install virtualenvwrapper')
+    sudo(_interpolate('mkdir %(workon)s && chmod g+w %(workon)s && chown %%(user)s:%%(user)s %(workon)s') % env)
+
+def _get_python_version():
     """Checks python version on remote virtualenv"""
     with settings(hide('commands', 'warnings'), warn_only=True):
+        # First tries to check python within virtualenv
         with prefix(_django_prefix()):
             result = run(GET_PYTHON_VERSION)
-            if result.failed:
-                abort('Could not determine Python version at virtualenv %s' % env.environment)
+        # If that fails, checks global python
+        if result.failed:
+            result = run(GET_PYTHON_VERSION)
+        # if it still fails, something is wrong!
+        if result.failed:
+            abort(_interpolate('Could not determine Python version at virtualenv %(virtualenv)s'))
     return result
 
 def _virtualenvwrapper_prefix():
@@ -213,17 +304,17 @@ def _virtualenvwrapper_prefix():
 def _setup_virtualenv():
     """Creates virtualenv for environment"""
     if files.exists(_interpolate(VIRTUALENV_DIR)):
-        print 'virtualenv %s already exists' % env.environment
+        print _interpolate('virtualenv %(virtualenv)s already exists')
     else:
         with prefix(_virtualenvwrapper_prefix()):
             run(_interpolate('mkvirtualenv --no-site-packages %(virtualenv)s'))
             with hide('commands'):
-                print 'virtualenv %s created with python %s\n' % (env.environment, run(GET_PYTHON_VERSION))
+                print 'virtualenv %s created with python %s\n' % (env.project['virtualenv'], run(GET_PYTHON_VERSION))
 
-def python():
+def python_version():
     """Tries to figure out Python version on server side"""
     _require_environment()
-    print 'Python version on virtualenv %s: %s' % (env.environment, _python_version())
+    print 'Python version on virtualenv %s: %s' % (env.project['virtualenv'], _get_python_version())
 
 #############################
 # (Django) project commands #
@@ -257,19 +348,22 @@ def remote(command):
     _require_environment()
     with prefix(_django_prefix()):
         with cd(_django_project_dir()):
-            run(_parse_alias(command))
+            if command.startswith('sudo '):
+                sudo(_parse_alias(command[5:]))
+            else:
+                run(_parse_alias(command))
 
-def setup():
+def setup_project():
     """Sets up a new environment"""
     _require_environment()
 
     # Checks if needed conf files for this environment already exist
-    if not os.path.exists('settings_%s.py' % env.environment):
-        abort('There is no settings.py for %s - create one, and commit' % env.environment)
-    if not os.path.exists('config/apache_%s.conf' % env.environment):
-        abort('There is no Apache conf for %s - use task "apache_conf" to generate one, and commit' % env.environment)
-    if not os.path.exists('config/wsgi_%s.py' % env.environment):
-        abort('There is no WSGI conf for %s - use task "wsgi_conf" to generate one, and commit' % env.environment)
+    if not os.path.exists(_interpolate('%(settings)s.py')):
+        abort(_interpolate('There is no settings.py for %(environment)s - create one, and commit'))
+    if not os.path.exists(_interpolate('config/apache_%(environment)s.conf')):
+        abort(_interpolate('There is no Apache conf for %(environment)s - use task "generate_apache_conf" to generate one, and commit'))
+    if not os.path.exists(_interpolate('config/wsgi_%(environment)s.py')):
+        abort(_interpolate('There is no WSGI conf for %(environment)s - use task "generate_wsgi_conf" to generate one, and commit'))
 
     # Configures virtualenv and clones git repo
     _setup_virtualenv()
@@ -282,20 +376,20 @@ def setup():
             remote(command)
 
     # Sets up Apache, MySQL
-    _setup_apache()
-    _setup_mysql()
+    _apache_setup_project()
+    _setup_project_mysql()
 
     # Finish installation
     remote(PIP_INSTALL_PREFIX)
-    update()
+    update_project()
 
-def status():
+def status_project():
     """
     Checks git log and status
     """
     remote('glogg -n 20 && echo "" && git status')
 
-def update():
+def update_project():
     """
     Updates server from git pull
     """
@@ -309,10 +403,9 @@ def update():
             'touch config/wsgi*'
         % branch)
 
-def backup():
+def backup_project():
     """
     Backup server's database and copy tar.gz to local ../backup dir
-    TODO: create a restore task
     """
     _require_environment()
 
@@ -325,28 +418,85 @@ def backup():
         with cd(_django_project_dir()):
             # Creates dir to store backup, avoiding existing similar names
             dirname = '../backup/%s_%s' % (datetime.date.today().strftime('%Y%m%d'), env.environment)
+            path = dirname
             index = 0
-            while files.exists(dirname) or files.exists('%s.tar.gz' % dirname):
+            while files.exists(path) or files.exists('%s.tar.gz' % path):
                 index += 1
-                dirname += '.%s' % index
-            run('mkdir -p %s' % dirname)
+                path = '%s.%s' % (dirname, index)
+            run('mkdir -p %s' % path)
 
-            # Backup
+            # Backup MySQL
             run('mysqldump -u %s -p%s %s > %s/%s.sql' % (
                 database['USER'],
                 database['PASSWORD'],
                 database['NAME'],
-                dirname,
-                database['NAME'],
+                path,
+                env.project['project'],
             ))
-            run('django-admin.py dumpdata auth > %s/auth.json' % dirname)
-            run('cp -R media/uploads %s/' % dirname)
-            run('cp -R media/newsletter %s/' % dirname)
+
+            # Backup extra files
+            extra_backup_files = env.project.get('extra_backup_files', None)
+            for file in extra_backup_files:
+                run('cp -R %s %s/' % (file, path))
+
+            # Create .tar.gz and removes uncompressed files
             with hide('stdout'):
-                run('tar -czvf %s.tar.gz %s/' % (dirname, dirname))
-            run('rm -rf %s/' % dirname)
+                run('tar -czvf %s.tar.gz %s/' % (path, path))
+            run('rm -rf %s/' % path)
 
             # Download backup?
             if console.confirm('Download backup?'):
-                get('%s.tar.gz' % dirname, '../backup')
+                get('%s.tar.gz' % path, '../backup')
 
+def restore_project(filename):
+    """
+    Restore server's database with .sql file contained in filename
+    """
+    _require_environment()
+
+    # Uses local Django settings to extract username/password to access remote database
+    django.settings_module(env.project['settings'])
+    database = django_settings.DATABASES['default']
+
+    # Remote side
+    with prefix(_django_prefix()):
+        with cd(_django_project_dir()):
+            # Uploads tar file
+            tarfile = os.path.basename(filename)
+            basename = tarfile[:tarfile.index('.tar.gz')]
+            put(filename, '../backup/%s' % tarfile)
+
+            # Restore MySQL
+            with cd('../'):
+                run('tar -xzvf backup/%s' % tarfile)
+                run('mysql -u %s -p%s %s < backup/%s/%s.sql' % (
+                    database['USER'],
+                    database['PASSWORD'],
+                    database['NAME'],
+                    basename,
+                    env.project['project'],
+                ))
+
+            # Restore extra files
+            extra_backup_files = env.project.get('extra_backup_files', None)
+            for file in extra_backup_files:
+                run('cp -R ../backup/%s/%s ./%s' % (basename, os.path.basename(file), os.path.dirname(file)))
+
+            # Removes uncompressed files, but leaves .tar.gz
+            run('rm -rf ../backup/%s' % basename)
+
+#####################
+# The Big Bootstrap #
+#####################
+
+def bootstrap():
+    """Installs EVERYTHING from scratch!"""
+    _require_environment()
+
+    adduser()
+    apt_get_update()
+    install_python()
+    install_git()
+    install_apache()
+    install_mysql()
+    setup_project()
