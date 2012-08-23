@@ -2,6 +2,7 @@
 # Generic fabfile.py
 #
 # See README for instructions on how to use fabmanager.
+import urllib
 
 import os
 import datetime
@@ -193,7 +194,9 @@ def apt_get_update():
 def install_mysql():
     """Installs MySQL"""
     sudo('DEBIAN_FRONTEND=noninteractive apt-get -y -qq install mysql-server libmysqlclient-dev')
-    sudo('mysqladmin -u root password %s' % MYSQL_ROOT_PASSWORD)
+    with settings(warn_only=True):
+        sudo('mysqladmin -u root password %s' % MYSQL_ROOT_PASSWORD)
+#    sudo('mysqladmin -u root -p%s -h localhost password %s' % (MYSQL_ROOT_PASSWORD, MYSQL_ROOT_PASSWORD))
 
 def _setup_project_mysql():
     """Creates MySQL database according to env's settings.py"""
@@ -215,7 +218,7 @@ def install_apache():
     """Installs Apache and mod_wsgi"""
     sudo ('apt-get -y -qq install apache2 apache2-mpm-worker libapache2-mod-wsgi')
 
-def _apache_setup_project():
+def _setup_project_apache():
     """Configures Apache"""
     if files.exists(_interpolate('/etc/apache2/sites-enabled/%(virtualenv)s')):
         print 'Apache conf for %(environment)s already exists' % env
@@ -272,13 +275,17 @@ def apache_restart():
 def install_python():
     """Installs Python, setuptools, pip, virtualenv, virtualenvwrapper"""
     _require_environment()
-    # TODO: Install Python 2.7.3 from source, regardless of Python distribution
+    # TODO: find a better criteria for when to use apt-get update
+    if not files.exists('/usr/bin/python'):
+        apt_get_update()
+    # TODO: Install Python 2.7.3 from source, regardless of Linux distribution
     sudo('apt-get -y -qq install python python2.6 python2.6-dev pkg-config gcc')
     sudo('apt-get -y -qq install python-setuptools')
     sudo('easy_install virtualenv')
     sudo('easy_install pip')
     sudo('pip install virtualenvwrapper')
-    sudo(_interpolate('mkdir %(workon)s && chmod g+w %(workon)s && chown %%(user)s:%%(user)s %(workon)s') % env)
+    with settings(warn_only=True):
+        sudo(_interpolate('mkdir %(workon)s && chmod g+w %(workon)s && chown %%(user)s:%%(user)s %(workon)s') % env)
 
 def _get_python_version():
     """Checks python version on remote virtualenv"""
@@ -330,6 +337,11 @@ def _django_project_dir():
 
 def _clone_gitrepo():
     """Clones project git repo into virtualenv"""
+    # Puts git repo in ~/.ssh/config to avoid interaction due to missing known_hosts
+    git_server = urllib.splituser(urllib.splittype(env.project['git_repo'])[0])[1]
+    if not files.exists('~/.ssh/config') or not files.contains('~/.ssh/config', git_server):
+        files.append('~/.ssh/config', ['host %s' % git_server, '    StrictHostKeyChecking no'])
+
     branch = env.project.get('git_branch', 'master')
     if files.exists(_interpolate(DJANGO_PROJECT_DIR)):
         print _interpolate('project %(project)s already exists, updating')
@@ -376,7 +388,7 @@ def setup_project():
             remote(command)
 
     # Sets up Apache, MySQL
-    _apache_setup_project()
+    _setup_project_apache()
     _setup_project_mysql()
 
     # Finish installation
@@ -494,7 +506,6 @@ def bootstrap():
     _require_environment()
 
     adduser()
-    apt_get_update()
     install_python()
     install_git()
     install_apache()
