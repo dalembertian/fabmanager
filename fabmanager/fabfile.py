@@ -392,8 +392,15 @@ def setup_project():
     _setup_project_mysql()
 
     # Finish installation
-    remote(PIP_INSTALL_PREFIX)
+    pip_install()
     update_project()
+
+def pip_install():
+    """
+    Uses pip to install needed requirements
+    """
+    _require_environment()
+    remote(PIP_INSTALL_PREFIX)
 
 def status_project():
     """
