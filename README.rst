@@ -93,15 +93,16 @@ An empty ENVS dictionary is defined by fabmanager/fabfile.py. Each project's fab
 
 Below is a complete list of parameters. Starred items are usually mandatory::
 
-  * host           Name or IP of the remote server
-    host_alias     Host alias(es), separated by ' ', for Apache conf file
-  * workon         Parent of the virtualenv directory (equals virtualenvwrapper WORKON_HOME)
-  * virtualenv     Virtualenv name
-  * project        Project name. Actual project location is thus given by $workon/$virtualenv/$project
-  * settings       settings.py being used (e.g.: 'settings', 'settings_custom')
-    git_repo       Git repo, mandatory if setup is being made by fabmanager
-    git_branch     If not provided, 'master' is assumed
-    extra_commands List of commands to be issued at the project's dir level, during setup, after git clone
+  * host                Name or IP of the remote server
+    host_alias          Host alias(es), separated by ' ', for Apache conf file
+  * workon              Parent of the virtualenv directory (equals virtualenvwrapper WORKON_HOME)
+  * virtualenv          Virtualenv name
+  * project             Project name. Actual project location is thus given by $workon/$virtualenv/$project
+  * settings            settings.py being used (e.g.: 'settings', 'settings_custom')
+    git_repo            Git repo, mandatory if setup is being made by fabmanager
+    git_branch          If not provided, 'master' is assumed
+    extra_commands      List of commands to be issued at the project's dir level, during setup, after git clone
+    extra_backup_files  List of extra files, besides the database SQL dump, that should go into a backup (from project' dir level)
 
 
 .. _fabmanager-todo:
