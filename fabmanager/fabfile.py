@@ -285,7 +285,9 @@ def install_python():
     sudo('easy_install pip')
     sudo('pip install virtualenvwrapper')
     with settings(warn_only=True):
-        sudo(_interpolate('mkdir %(workon)s && chmod g+w %(workon)s && chown %%(user)s:%%(user)s %(workon)s') % env)
+        sudo(_interpolate('mkdir %(workon)s'))
+        sudo(_interpolate('chmod g+w %(workon)s'))
+        sudo(_interpolate('chown %%(user)s:%%(user)s %(workon)s') % env)
 
 def _get_python_version():
     """Checks python version on remote virtualenv"""
@@ -414,13 +416,11 @@ def update_project():
     """
     branch = env.project.get('git_branch', 'master')
     with settings(hide('warnings'), warn_only=True):
-        remote(
-            'git pull origin %s && '
-            'django-admin.py syncdb --noinput && '
-            'django-admin.py migrate && '
-            'django-admin.py collectstatic --noinput && '
-            'touch config/wsgi*'
-        % branch)
+        remote('git pull origin %s' % branch)
+        remote('django-admin.py syncdb --noinput')
+        remote('django-admin.py migrate')
+        remote('django-admin.py collectstatic --noinput')
+        remote('touch config/wsgi*')
 
 def backup_project():
     """
