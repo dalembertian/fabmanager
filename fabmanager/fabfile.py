@@ -13,8 +13,10 @@ from fabric.contrib import django
 from fabric.contrib import files
 from fabric.contrib import console
 
-from django.conf import settings as django_settings
-
+try:
+    from django.conf import settings as django_settings
+except:
+    django_settings = {}
 
 # Paths related to fabmanager
 fabmanager_dir = os.path.dirname(os.path.abspath(__file__))
@@ -518,3 +520,4 @@ def bootstrap():
     install_apache()
     install_mysql()
     setup_project()
+
