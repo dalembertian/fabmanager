@@ -416,9 +416,16 @@ def update_project():
     """
     Updates server from git pull
     """
-    branch = env.project.get('git_branch', 'master')
+    _require_environment()
+
+    # Grants write rights on log dir for the admin group
+    log_dir = '%s/log' % _interpolate(VIRTUALENV_DIR)
+    if files.exists(log_dir):
+        sudo('chmod -R g+w %s' % log_dir)
+
+    # Updates from git, issues Django syncdb, South migrate, Collecstatic and resets Apache
     with settings(hide('warnings'), warn_only=True):
-        remote('git pull origin %s' % branch)
+        remote('git pull origin %s' % env.project.get('git_branch', 'master'))
         remote('django-admin.py syncdb --noinput')
         remote('django-admin.py migrate')
         remote('django-admin.py collectstatic --noinput')
