@@ -91,7 +91,7 @@ An empty ENVS dictionary is defined by fabmanager/fabfile.py. Each project's fab
             'settings': 'settings',
             etc.
 
-Below is a complete list of parameters. Starred items are usually mandatory::
+Below is the complete list of parameters. Starred items are usually mandatory::
 
   * host                Name or IP of the remote server
     host_alias          Host alias(es), separated by ' ', for Apache conf file
@@ -99,6 +99,7 @@ Below is a complete list of parameters. Starred items are usually mandatory::
   * virtualenv          Virtualenv name
   * project             Project name. Actual project location is thus given by $workon/$virtualenv/$project
   * settings            settings.py being used (e.g.: 'settings', 'settings_custom')
+    database            Dictionary of database settings (as defined in settings.py). If not provided, extracts from current settings.py.
     git_repo            Git repo, mandatory if setup is being made by fabmanager
     git_branch          If not provided, 'master' is assumed
     extra_commands      List of commands to be issued at the project's dir level, during setup, after git clone

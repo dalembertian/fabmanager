@@ -202,9 +202,12 @@ def install_mysql():
 
 def _setup_project_mysql():
     """Creates MySQL database according to env's settings.py"""
-    # Uses local Django settings to extract username/password to access remote database
-    django.settings_module(env.project['settings'])
-    database = django_settings.DATABASES['default']
+    # Unless explicitly provided, uses local Django settings to
+    # extract username/password to access remote database
+    database = env.project.get('database', None)
+    if not database:
+        django.settings_module(env.project['settings'])
+        database = django_settings.DATABASES['default']
 
     # Create database & user, if not already there
     with settings(hide('warnings'), warn_only=True):
@@ -437,9 +440,12 @@ def backup_project():
     """
     _require_environment()
 
-    # Uses local Django settings to extract username/password to access remote database
-    django.settings_module(env.project['settings'])
-    database = django_settings.DATABASES['default']
+    # Unless explicitly provided, uses local Django settings to
+    # extract username/password to access remote database
+    database = env.project.get('database', None)
+    if not database:
+        django.settings_module(env.project['settings'])
+        database = django_settings.DATABASES['default']
 
     # Remote side
     with prefix(_django_prefix()):
@@ -454,7 +460,8 @@ def backup_project():
             run('mkdir -p %s' % path)
 
             # Backup MySQL
-            run('mysqldump -u %s -p%s %s > %s/%s.sql' % (
+            run('mysqldump %s -u %s -p%s %s > %s/%s.sql' % (
+                '-h %s' % database['HOST'] if database.get('HOST', None) else '',
                 database['USER'],
                 database['PASSWORD'],
                 database['NAME'],
@@ -482,9 +489,12 @@ def restore_project(filename):
     """
     _require_environment()
 
-    # Uses local Django settings to extract username/password to access remote database
-    django.settings_module(env.project['settings'])
-    database = django_settings.DATABASES['default']
+    # Unless explicitly provided, uses local Django settings to
+    # extract username/password to access remote database
+    database = env.project.get('database', None)
+    if not database:
+        django.settings_module(env.project['settings'])
+        database = django_settings.DATABASES['default']
 
     # Remote side
     with prefix(_django_prefix()):
