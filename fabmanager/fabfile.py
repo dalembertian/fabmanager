@@ -486,7 +486,7 @@ def backup_project():
             ))
 
             # Backup extra files
-            extra_backup_files = env.project.get('extra_backup_files', None)
+            extra_backup_files = env.project.get('extra_backup_files', [])
             for file in extra_backup_files:
                 run('cp -R %s %s/' % (file, path))
 
@@ -532,7 +532,7 @@ def restore_project(filename):
                 ))
 
             # Restore extra files
-            extra_backup_files = env.project.get('extra_backup_files', None)
+            extra_backup_files = env.project.get('extra_backup_files', [])
             for file in extra_backup_files:
                 run('cp -R ../backup/%s/%s ./%s' % (basename, os.path.basename(file), os.path.dirname(file)))
 
