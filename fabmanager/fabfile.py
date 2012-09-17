@@ -497,7 +497,7 @@ def backup_project():
 
             # Download backup?
             if console.confirm('Download backup?'):
-                get('%s.tar.gz' % path, '../backup')
+                return get('%s.tar.gz' % path, '../backup')
 
 def restore_project(filename):
     """
