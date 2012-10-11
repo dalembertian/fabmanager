@@ -216,6 +216,19 @@ def install_mysql():
         sudo('mysqladmin -u root password %s' % MYSQL_ROOT_PASSWORD)
 #    sudo('mysqladmin -u root -p%s -h localhost password %s' % (MYSQL_ROOT_PASSWORD, MYSQL_ROOT_PASSWORD))
 
+def _drop_database_mysql():
+    """Destroy (DROP) MySQL database according to env's settings.py"""
+    # Unless explicitly provided, uses local Django settings to
+    # extract username/password to access remote database
+    database = env.project.get('database', None)
+    if not database:
+        django.settings_module(env.project['settings'])
+        database = django_settings.DATABASES['default']
+
+    # Drops database
+    with settings(hide('warnings'), warn_only=True):
+        result = run(MYSQL_PREFIX % "\"DROP DATABASE %(NAME)s;\"" % database)
+
 def _setup_project_mysql():
     """Creates MySQL database according to env's settings.py"""
     # Unless explicitly provided, uses local Django settings to
@@ -505,6 +518,10 @@ def restore_project(filename):
     """
     _require_environment()
 
+    # Confirms action
+    if not console.confirm('ATTENTION! This will destroy current database! Confirm?', default=False):
+        return
+
     # Unless explicitly provided, uses local Django settings to
     # extract username/password to access remote database
     database = env.project.get('database', None)
@@ -519,6 +536,10 @@ def restore_project(filename):
             tarfile = os.path.basename(filename)
             basename = tarfile[:tarfile.index('.tar.gz')]
             put(filename, '../backup/%s' % tarfile)
+
+            # Drop and recreate current database
+            _drop_database_mysql()
+            _setup_project_mysql()
 
             # Restore MySQL
             with cd('../'):
