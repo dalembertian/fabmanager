@@ -54,8 +54,7 @@ APACHE_CONF         = CONFIG_DIR+'/apache_%(environment)s.conf'
 WSGI_CONF           = CONFIG_DIR+'/wsgi_%(environment)s.py'
 
 # MySQL
-MYSQL_ROOT_PASSWORD = '1ntr05p3ct10n'
-MYSQL_PREFIX        = 'mysql -u root -p%s -e %%s' % MYSQL_ROOT_PASSWORD
+MYSQL_PREFIX        = 'mysql -u root -p -e %s'
 PIP_INSTALL_PREFIX  = 'pip install -r config/required-packages.pip'
 
 # Aliases for common tasks at server
@@ -211,10 +210,11 @@ def apt_get_update():
 
 def install_mysql():
     """Installs MySQL"""
+    password = prompt('Password for MySQL root?', default='')
     sudo('DEBIAN_FRONTEND=noninteractive apt-get -y -qq install mysql-server libmysqlclient-dev')
     with settings(warn_only=True):
-        sudo('mysqladmin -u root password %s' % MYSQL_ROOT_PASSWORD)
-#    sudo('mysqladmin -u root -p%s -h localhost password %s' % (MYSQL_ROOT_PASSWORD, MYSQL_ROOT_PASSWORD))
+        #sudo('mysqladmin -u root -p%s -h localhost password %s' % (MYSQL_ROOT_PASSWORD, MYSQL_ROOT_PASSWORD))
+        sudo('mysqladmin -u root password %s' % password)
 
 def _drop_database_mysql():
     """Destroy (DROP) MySQL database according to env's settings.py"""
