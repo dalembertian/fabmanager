@@ -423,6 +423,7 @@ def setup_project():
 
     # Sets up Apache, MySQL
     _setup_project_apache()
+    _drop_database_mysql()
     _setup_project_mysql()
 
     # Finish installation
