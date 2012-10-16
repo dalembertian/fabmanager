@@ -456,8 +456,10 @@ def update_project():
         sudo('chmod -R g+w %s' % log_dir)
 
     # Updates from git, issues Django syncdb, South migrate, Collecstatic and resets Apache
+    branch = env.project.get('git_branch', 'master')
+    remote('git checkout %s' % branch)
     with settings(hide('warnings'), warn_only=True):
-        remote('git pull origin %s' % env.project.get('git_branch', 'master'))
+        remote('git pull origin %s' % branch)
         remote('django-admin.py syncdb --noinput')
         remote('django-admin.py migrate')
         remote('django-admin.py collectstatic --noinput')
