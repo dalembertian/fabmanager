@@ -26,7 +26,6 @@ templates_dir  = os.path.join(fabmanager_dir, 'templates/fabmanager/')
 ENVS = {}
 
 # Linux
-REMOTE_USER_PASSWORD = '1ntr05p3ct10n'
 GIT_VERSION          ='1.7.10.3'
 GET_GIT_VERSION      = "git --version | cut -d ' ' -f 3"
 
@@ -156,7 +155,6 @@ def adduser():
     """Creates remote user with the same name as the local user, and uploads ~/.ssh/id_rsa*"""
     _require_environment()
     env.remote_home = '/home/%s' % env.local_user
-    env.remote_password = REMOTE_USER_PASSWORD
 
     # Connects as root (or sudoer)
     user = prompt('Remote username?', default='root')
@@ -169,7 +167,7 @@ def adduser():
     else:
         # TODO: generate password -p%(remote_password)s with [m]crypt
         sudo('useradd -d%(remote_home)s -s/bin/bash -m -U %(local_user)s' % env)
-        sudo('passwd rubens')
+        sudo('passwd %s' % env.local_user)
         # TODO: not all distributions use group sudo for sudoers (e.g.: old Ubuntu uses admin)
         # TODO: sudoers should not have to use password
         sudo('adduser %(local_user)s sudo' % env)
