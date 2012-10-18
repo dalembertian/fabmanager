@@ -456,7 +456,8 @@ def update_project():
 
     # Updates from git, issues Django syncdb, South migrate, Collecstatic and resets Apache
     branch = env.project.get('git_branch', 'master')
-    remote('git fetch origin %s:%s' % (branch, branch))
+    with settings(hide('warnings'), warn_only=True):
+        remote('git fetch origin %s:%s' % (branch, branch))
     remote('git checkout %s' % branch)
     with settings(hide('warnings'), warn_only=True):
         remote('git pull origin %s' % branch)
