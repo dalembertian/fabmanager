@@ -463,8 +463,8 @@ def update_project():
         remote('git pull origin %s' % branch)
         remote('django-admin.py syncdb --noinput')
         remote('django-admin.py migrate')
-        remote('django-admin.py collectstatic --noinput')
         remote('touch config/wsgi*')
+        remote('django-admin.py collectstatic --noinput')
 
 def backup_project():
     """
