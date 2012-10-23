@@ -538,7 +538,8 @@ def restore_project(filename):
             # Uploads tar file
             tarfile = os.path.basename(filename)
             basename = tarfile[:tarfile.index('.tar.gz')]
-            put(filename, '../backup/%s' % tarfile)
+            if console.confirm('Upload backup?'):
+                put(filename, '../backup/%s' % tarfile)
 
             # Drop and recreate current database
             _drop_database_mysql()
