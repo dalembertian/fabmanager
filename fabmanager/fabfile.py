@@ -564,6 +564,17 @@ def restore_project(filename):
             # Removes uncompressed files, but leaves .tar.gz
             run('rm -rf ../backup/%s' % basename)
 
+def check_log():
+    """
+    Tails Django log
+    """
+    _require_environment()
+    with prefix(_django_prefix()):
+        with cd(_django_project_dir()):
+            logfile = '../log/%s.log' % env.project['project']
+            run('tail -40 %s' % logfile)
+            run('tail -f %s' % logfile)
+
 #####################
 # The Big Bootstrap #
 #####################
