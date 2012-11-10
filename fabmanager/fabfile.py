@@ -387,6 +387,14 @@ def _clone_gitrepo():
                 remote('git fetch origin %s:%s' % (branch, branch))
                 remote('git checkout %s' % branch)
 
+def extra_commands():
+    """Issue commands contained in env.project['EXTRA_COMMANDS']"""
+    _require_environment()
+    extra_commands = env.project.get('extra_commands', [])
+    with settings(hide('warnings'), warn_only=True):
+        for command in extra_commands:
+            remote(command)
+
 def remote(command):
     """
     Issues a generic command at project's directory level
@@ -416,10 +424,7 @@ def setup_project():
     _clone_gitrepo()
 
     # Issues extra commands at project's level, if any
-    extra_commands = env.project.get('extra_commands', [])
-    with settings(hide('warnings'), warn_only=True):
-        for command in extra_commands:
-            remote(command)
+    extra_commands()
 
     # Sets up Apache, MySQL
     _setup_project_apache()
@@ -436,6 +441,12 @@ def pip_install():
     """
     _require_environment()
     remote(PIP_INSTALL_PREFIX)
+
+def touch_project():
+    """
+    Touches WSGI file to reset Apache
+    """
+    remote('touch config/wsgi*')
 
 def status_project():
     """
@@ -456,15 +467,17 @@ def update_project():
 
     # Updates from git, issues Django syncdb, South migrate, Collecstatic and resets Apache
     branch = env.project.get('git_branch', 'master')
-    with settings(hide('warnings'), warn_only=True):
-        remote('git fetch origin %s:%s' % (branch, branch))
-    remote('git checkout %s' % branch)
-    with settings(hide('warnings'), warn_only=True):
-        remote('git pull origin %s' % branch)
-        remote('django-admin.py syncdb --noinput')
-        remote('django-admin.py migrate')
-        remote('touch config/wsgi*')
-        remote('django-admin.py collectstatic --noinput')
+    with prefix(_django_prefix()):
+        with cd(_django_project_dir()):
+            with settings(hide('warnings'), warn_only=True):
+                run('git fetch origin %s:%s' % (branch, branch))
+            run('git checkout %s' % branch)
+            with settings(hide('warnings'), warn_only=True):
+                run('git pull origin %s' % branch)
+                run('django-admin.py syncdb --noinput')
+                run('django-admin.py migrate')
+                run('touch config/wsgi*')
+                run('django-admin.py collectstatic --noinput')
 
 def backup_project():
     """
