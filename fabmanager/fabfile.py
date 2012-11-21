@@ -585,8 +585,7 @@ def check_log():
     with prefix(_django_prefix()):
         with cd(_django_project_dir()):
             logfile = '../log/%s.log' % env.project['project']
-            run('tail -40 %s' % logfile)
-            run('tail -f %s' % logfile)
+            run('tail -100f %s' % logfile)
 
 #####################
 # The Big Bootstrap #
