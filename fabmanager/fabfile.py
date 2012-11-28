@@ -54,6 +54,7 @@ WSGI_CONF           = CONFIG_DIR+'/wsgi_%(environment)s.py'
 
 # MySQL
 MYSQL_PREFIX        = 'mysql -u root -p -e %s'
+
 PIP_INSTALL_PREFIX  = 'pip install -r config/required-packages.pip'
 
 # Aliases for common tasks at server
@@ -559,11 +560,12 @@ def restore_project(filename):
             _setup_project_mysql()
 
             # Restore MySQL
+            # To avoid silly mistakes, instead of using project's user & password, uses root's
             with cd('../'):
                 run('tar -xzvf backup/%s' % tarfile)
-                run('mysql -u %s -p%s %s < backup/%s/%s.sql' % (
-                    database['USER'],
-                    database['PASSWORD'],
+                run('mysql -u root -p %s < backup/%s/%s.sql' % (
+                    #database['USER'],
+                    #database['PASSWORD'],
                     database['NAME'],
                     basename,
                     env.project['project'],
