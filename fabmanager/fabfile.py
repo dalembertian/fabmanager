@@ -83,8 +83,8 @@ def _setup_environment(environment):
     env.environment = environment
     env.project     = ENVS[environment]
     env.hosts       = [env.project['host']]
-    env.user        = env.user or env.project.get('user', env.local_user)
-    env.password    = env.password or env.project.get('password', None)
+    env.user        = env.project.get('user', env.local_user)
+    env.password    = env.project.get('password', None)
     # Redundant, just to easy the interpolation later on
     env.project['environment'] = environment
 
