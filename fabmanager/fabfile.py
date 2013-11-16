@@ -320,7 +320,7 @@ def install_python():
     sudo('pip install virtualenv')
     sudo('pip install virtualenvwrapper')
     with settings(warn_only=True):
-        sudo(_interpolate('mkdir %(workon)s'))
+        sudo(_interpolate('mkdir -p %(workon)s'))
         sudo(_interpolate('chmod g+w %(workon)s'))
         sudo(_interpolate('chown %%(user)s:%%(user)s %(workon)s') % env)
 
