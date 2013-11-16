@@ -629,6 +629,7 @@ def bootstrap():
     _require_environment()
 
     adduser()
+    hostname(env.project)
     install_python()
     install_git()
     install_apache()
