@@ -26,8 +26,8 @@ templates_dir  = os.path.join(fabmanager_dir, 'templates/fabmanager/')
 ENVS = {}
 
 # Linux
-GIT_VERSION          ='1.7.10.3'
-GET_GIT_VERSION      = "git --version | cut -d ' ' -f 3"
+NEWEST_GIT_VERSION  = "curl -s http://git-scm.com/ | grep \"class='version'\" | perl -pe 's/.*?([0-9\.]+)<.*/$1/'"
+LOCAL_GIT_VERSION   = "git --version | cut -d ' ' -f 3"
 
 # Python
 GET_PYTHON_VERSION  = "python -V 2>&1 | cut -f2 -d' ' | cut -f-2 -d."
@@ -184,10 +184,11 @@ def adduser():
     env.password = None
 
 def install_git():
-    """Installs (recent) git from source"""
-    git_version = sudo(GET_GIT_VERSION)
-    if git_version != GIT_VERSION:
-        git_file = 'git-%s' % GIT_VERSION
+    """Installs (most recent) git from source"""
+    local_git_version = sudo(LOCAL_GIT_VERSION)
+    newest_git_version = run(NEWEST_GIT_VERSION)
+    if local_git_version != newest_git_version:
+        git_file = 'git-%s' % newest_git_version
         sudo('apt-get -y -qq install build-essential')
         sudo('apt-get -y -qq install git-core')
         sudo('apt-get -y -qq install libcurl4-gnutls-dev')
@@ -617,4 +618,3 @@ def bootstrap():
     install_apache()
     install_mysql()
     setup_project()
-
