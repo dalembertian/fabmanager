@@ -189,6 +189,7 @@ def install_git():
     newest_git_version = run(NEWEST_GIT_VERSION)
     if local_git_version != newest_git_version:
         git_file = 'git-%s' % newest_git_version
+        apt_get_update()
         sudo('apt-get -y -qq install build-essential')
         sudo('apt-get -y -qq install git-core')
         sudo('apt-get -y -qq install libcurl4-gnutls-dev')
@@ -203,8 +204,17 @@ def install_git():
             sudo('make --silent prefix=/usr/local install  > /dev/null')
 
 def apt_get_update():
-    """Updates apt-get repositories"""
-    sudo('apt-get update')
+    """Updates apt-get repositories, if needed"""
+    temp_dir = run('echo ${TMPDIR:-"/tmp/"}')
+    temp_file = os.path.join(temp_dir, 'apt-get-update-done')
+    today = datetime.date.today().strftime('%d/%m/%y')
+    if files.exists(temp_file):
+        last_date_run = run('cat %s' % temp_file)
+    else:
+        last_date_run = ''
+    if last_date_run != today:
+        sudo('apt-get update')
+        run('echo %s > %s' % (today, temp_file))
 
 ##################
 # MySQL commands #
@@ -213,6 +223,7 @@ def apt_get_update():
 def install_mysql():
     """Installs MySQL"""
     password = prompt('Password for MySQL root?', default='')
+    apt_get_update()
     sudo('DEBIAN_FRONTEND=noninteractive apt-get -y -qq install mysql-server libmysqlclient-dev')
     with settings(warn_only=True):
         #sudo('mysqladmin -u root -p%s -h localhost password %s' % (MYSQL_ROOT_PASSWORD, MYSQL_ROOT_PASSWORD))
@@ -252,6 +263,7 @@ def _setup_project_mysql():
 
 def install_apache():
     """Installs Apache and mod_wsgi"""
+    apt_get_update()
     sudo ('apt-get -y -qq install apache2 apache2-mpm-worker libapache2-mod-wsgi')
 
 def _setup_project_apache():
@@ -309,12 +321,10 @@ def apache_restart():
 ###################
 
 def install_python():
-    """Installs Python, setuptools, pip, virtualenv, virtualenvwrapper"""
+    """Installs Python 2.7, setuptools, pip, virtualenv, virtualenvwrapper"""
     _require_environment()
-    # TODO: find a better criteria for when to use apt-get update
-    if not files.exists('/usr/bin/python'):
-        apt_get_update()
-    # TODO: Install Python 2.7.3 from source, regardless of Linux distribution
+    # TODO: Install Python from source, regardless of Linux distribution
+    apt_get_update()
     sudo('apt-get -y -qq install python python2.7 python2.7-dev pkg-config gcc')
     sudo('apt-get -y -qq install python-setuptools')
     sudo('easy_install pip')
