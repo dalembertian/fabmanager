@@ -137,7 +137,8 @@ def _generate_conf(conf_file, variables):
 # Vagrant #
 ###########
 
-def vagrant():
+def _vagrant():
+    """(work in progress)"""
     # change from the default user to 'vagrant'
     env.user = 'vagrant'
     # connect to the port-forwarded ssh
