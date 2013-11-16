@@ -216,6 +216,13 @@ def apt_get_update():
         sudo('apt-get update')
         run('echo %s > %s' % (today, temp_file))
 
+def hostname(name):
+    """Updates server /etc/hosts and /etc/hostname"""
+    files.sed('/etc/hosts', '.*', '127.0.0.1 %s' % name, limit='^127.0.0.1 ', use_sudo=True)
+    sudo('mv /etc/hostname /etc/hostname.bak && echo %s > /etc/hostname' % name)
+    #sudo('/etc/init.d/hostname.sh start')
+
+
 ##################
 # MySQL commands #
 ##################
