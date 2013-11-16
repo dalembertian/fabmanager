@@ -314,10 +314,10 @@ def install_python():
     if not files.exists('/usr/bin/python'):
         apt_get_update()
     # TODO: Install Python 2.7.3 from source, regardless of Linux distribution
-    sudo('apt-get -y -qq install python python2.6 python2.6-dev pkg-config gcc')
+    sudo('apt-get -y -qq install python python2.7 python2.7-dev pkg-config gcc')
     sudo('apt-get -y -qq install python-setuptools')
-    sudo('easy_install virtualenv')
     sudo('easy_install pip')
+    sudo('pip install virtualenv')
     sudo('pip install virtualenvwrapper')
     with settings(warn_only=True):
         sudo(_interpolate('mkdir %(workon)s'))
