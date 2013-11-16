@@ -153,7 +153,7 @@ def vagrant():
 ##################
 
 def adduser():
-    """Creates remote user with the designated user for environment (default: local user), and uploads ~/.ssh/id_rsa*"""
+    """Creates remote user with the designated user for environment (default: local user), and uploads ~/.ssh/id_rsa.pub as authorized_keys"""
     _require_environment()
 
     # New user to be created
@@ -176,7 +176,6 @@ def adduser():
         sudo('adduser %(remote_user)s sudo' % env)
         sudo('mkdir %(remote_home)s/.ssh' % env)
         put('~/.ssh/id_rsa.pub', '%(remote_home)s/.ssh/authorized_keys' % env, use_sudo=True, mode=0644)
-        put('~/.ssh/id_rsa', '%(remote_home)s/.ssh/id_rsa' % env, use_sudo=True, mode=0600)
         sudo('chown -R %(remote_user)s:%(remote_user)s %(remote_home)s/.ssh' % env)
 
     # Continues as newly created user
@@ -226,7 +225,6 @@ def install_mysql():
     apt_get_update()
     sudo('DEBIAN_FRONTEND=noninteractive apt-get -y -qq install mysql-server libmysqlclient-dev')
     with settings(warn_only=True):
-        #sudo('mysqladmin -u root -p%s -h localhost password %s' % (MYSQL_ROOT_PASSWORD, MYSQL_ROOT_PASSWORD))
         sudo('mysqladmin -u root password %s' % password)
 
 def _drop_database_mysql():
