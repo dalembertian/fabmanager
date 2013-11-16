@@ -153,32 +153,34 @@ def vagrant():
 ##################
 
 def adduser():
-    """Creates remote user with the same name as the local user, and uploads ~/.ssh/id_rsa*"""
+    """Creates remote user with the designated user for environment (default: local user), and uploads ~/.ssh/id_rsa*"""
     _require_environment()
-    env.remote_home = '/home/%s' % env.local_user
+
+    # New user to be created
+    env.remote_user = env.user
+    env.remote_home = '/home/%s' % env.user
 
     # Connects as root (or sudoer)
-    user = prompt('Remote username?', default='root')
-    env.user = user
+    env.user = prompt('Remote root?', default='root')
     env.password = None
 
-    # Creates user with same name as local_user, if it doesn't exist already
+    # Creates user, if it doesn't exist already
     if files.exists(env.remote_home):
-        print 'User %(local_user)s already exists on %(environment)s!' % env
+        print 'User %(remote_user)s already exists on %(environment)s!' % env
     else:
         # TODO: generate password -p%(remote_password)s with [m]crypt
-        sudo('useradd -d%(remote_home)s -s/bin/bash -m -U %(local_user)s' % env)
-        sudo('passwd %s' % env.local_user)
+        sudo('useradd -d%(remote_home)s -s/bin/bash -m -U %(remote_user)s' % env)
+        sudo('passwd %(remote_user)s' % env)
         # TODO: not all distributions use group sudo for sudoers (e.g.: old Ubuntu uses admin)
         # TODO: sudoers should not have to use password
-        sudo('adduser %(local_user)s sudo' % env)
+        sudo('adduser %(remote_user)s sudo' % env)
         sudo('mkdir %(remote_home)s/.ssh' % env)
         put('~/.ssh/id_rsa.pub', '%(remote_home)s/.ssh/authorized_keys' % env, use_sudo=True, mode=0644)
         put('~/.ssh/id_rsa', '%(remote_home)s/.ssh/id_rsa' % env, use_sudo=True, mode=0600)
-        sudo('chown -R %(local_user)s:%(local_user)s %(remote_home)s/.ssh' % env)
+        sudo('chown -R %(remote_user)s:%(remote_user)s %(remote_home)s/.ssh' % env)
 
     # Continues as newly created user
-    env.user = env.local_user
+    env.user = env.remote_user
     env.password = None
 
 def install_git():
