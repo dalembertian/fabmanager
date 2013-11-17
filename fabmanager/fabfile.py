@@ -220,7 +220,7 @@ def hostname(name):
     """Updates server /etc/hosts and /etc/hostname"""
     files.sed('/etc/hosts', '.*', '127.0.0.1 %s' % name, limit='^127.0.0.1 ', use_sudo=True)
     sudo('mv /etc/hostname /etc/hostname.bak && echo %s > /etc/hostname' % name)
-    #sudo('/etc/init.d/hostname.sh start')
+    sudo('hostname %s' % name)
 
 
 ##################
@@ -623,7 +623,7 @@ def bootstrap():
     _require_environment()
 
     adduser()
-    hostname(env.project)
+    hostname(env.project['project'])
     install_python()
     install_git()
     install_apache()
