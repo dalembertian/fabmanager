@@ -7,7 +7,7 @@ fabmanager
 
 .. _fabmanager-synopsis:
 
-fabmanager is a set of useful tasks to be used with Fabric, a Python tool for application deployment and systems administration over SSH, to manage Django projects. It provides commands such as::
+fabmanager is a set of useful tasks to be used with Fabric[1] to manage Django projects. It provides commands such as::
 
     bootstrap           Builds everything from scratch: installs and configures python, git, virtualenv, Apache, MySQL, etc.
     backup_database     Backs up (and optionally downloads) a .tar.gz with the MySQL dump of the production database
@@ -31,6 +31,8 @@ Fabmanager expects the following:
   * South      0.8
   * Fabric     1.8
   * pip, virtualenv, virtualenvwrapper
+
+[1] Fabric is a Python tool for application deployment and systems administration over SSH
 
 
 .. _fabmanager-contents:
