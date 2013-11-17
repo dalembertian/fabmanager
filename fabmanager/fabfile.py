@@ -37,15 +37,16 @@ VIRTUALENVWRAPPER_SCRIPT = '/usr/local/bin/virtualenvwrapper.sh'
 VIRTUALENVWRAPPER_PREFIX = 'export WORKON_HOME=%(workon)s && source %(script)s'
 
 # Django strings should be interpolated by ENVS[project]
-VIRTUALENV_DIR      = '%(workon)s/%(virtualenv)s'
-SITE_PACKAGES_DIR   = 'lib/python%s/site-packages'
-DJANGO_PROJECT_DIR  = "%(workon)s/%(virtualenv)s/%(project)s"
-DJANGO_PREFIX       = "export PYTHONPATH=%(workon)s/%(virtualenv)s:%(workon)s/%(virtualenv)s/%(project)s " \
-                      "DJANGO_SETTINGS_MODULE=%(project)s.%(settings)s && " \
-                      "source %(workon)s/%(virtualenv)s/bin/activate"
+VIRTUALENV_DIR           = '%(workon)s/%(virtualenv)s'
+SITE_PACKAGES_DIR        = 'lib/python%s/site-packages'
+DJANGO_LATEST_VERSION    = '1.6'
+DJANGO_PROJECT_DIR       = "%(workon)s/%(virtualenv)s/%(project)s"
+DJANGO_PREFIX            = "export PYTHONPATH=%(workon)s/%(virtualenv)s:%(workon)s/%(virtualenv)s/%(project)s " \
+                           "DJANGO_SETTINGS_MODULE=%(project)s.%(settings)s && " \
+                           "source %(workon)s/%(virtualenv)s/bin/activate"
 
 # Apache
-CONFIG_DIR          = '%(workon)s/%(virtualenv)s/%(project)s/config'
+CONFIG_DIR          = '%(workon)s/%(virtualenv)s/%(project)s/%(project)s'
 MEDIA_DIR           = '%(workon)s/%(virtualenv)s/%(project)s/media'
 STATIC_DIR          = '%(workon)s/%(virtualenv)s/%(project)s/static'
 FAVICON_DIR         = '%(workon)s/%(virtualenv)s/%(project)s/static/images'
@@ -107,13 +108,15 @@ def _parse_alias(command):
     else:
         return '%s %s' % (ALIASES[words[0]], ' '.join(words[1:]))
 
-def _generate_conf(conf_file, variables):
+def _generate_conf(conf_file, variables, django_version):
     """Generates conf file from template, and optionally saves it"""
+    if not django_version:
+        django_version = DJANGO_LATEST_VERSION
+
     # File names
-    filename_parts = conf_file.split('.')
-    filename_parts.insert(1, env.environment)
-    input_file = os.path.join(templates_dir, conf_file)
-    output_file = 'config/%s_%s.%s' % tuple(filename_parts)
+    part = conf_file.split('.')
+    input_file = os.path.join(templates_dir, '%s_django%s.%s' % (part[0], django_version, part[1]))
+    output_file = '%s/%s_%s.%s' % (env.project['project'], part[0], env.environment, part[1])
 
     # Generate conf file from template
     conf = ''
@@ -280,39 +283,38 @@ def _setup_project_apache():
         sudo(_interpolate('ln -s %s /etc/apache2/sites-enabled/%%(virtualenv)s' % APACHE_CONF))
         sudo('apache2ctl restart')
 
-def generate_apache_conf():
+def generate_apache_conf(django_version=None):
     """Generates Apache conf file. Requires: path to WSGI conf file."""
     _require_environment()
 
-    # Dictionary for interpolating template
+    site_packages_dir = '%s/%s' % (_interpolate(VIRTUALENV_DIR), SITE_PACKAGES_DIR % _get_python_version())
     config_dir        = _interpolate(CONFIG_DIR)
     host_aliases      = env.project.get('host_aliases', '')
     if host_aliases:
         host_aliases  = 'ServerAlias %s' % host_aliases
 
-    variables = {
-        'host':             env.project['host'],
-        'host_aliases':     host_aliases,
-        'static_admin_dir': '%s/%s/django/contrib/admin/media' % (_interpolate(VIRTUALENV_DIR), SITE_PACKAGES_DIR % _get_python_version()),
-        'media_dir':        _interpolate(MEDIA_DIR),
-        'static_dir':       _interpolate(STATIC_DIR),
-        'favicon_dir':      _interpolate(FAVICON_DIR),
-        'config_dir':       config_dir,
-        'wsgi_file':        '%s/wsgi_%s.py' % (config_dir, env.environment),
-        }
-    _generate_conf('apache.conf', variables)
+    _generate_conf('apache.conf', {
+        'host':              env.project['host'],
+        'host_aliases':      host_aliases,
+        'site_packages_dir': site_packages_dir,
+        'static_admin_dir':  '%s/django/contrib/admin/media' % site_packages_dir,
+        'project_dir':       _interpolate(DJANGO_PROJECT_DIR),
+        'media_dir':         _interpolate(MEDIA_DIR),
+        'static_dir':        _interpolate(STATIC_DIR),
+        'favicon_dir':       _interpolate(FAVICON_DIR),
+        'config_dir':        config_dir,
+        'wsgi_file':         '%s/wsgi_%s.py' % (config_dir, env.environment),
+    }, django_version)
 
-def generate_wsgi_conf():
+def generate_wsgi_conf(django_version=None):
     """Generates WSGI conf file"""
     _require_environment()
-
-    # Dictionary for interpolating template
-    variables = {
+    _generate_conf('wsgi.py', {
         'project': env.project['project'],
         'settings': env.project['settings'],
         'site_packages': SITE_PACKAGES_DIR % _get_python_version(),
-        }
-    _generate_conf('wsgi.py', variables)
+    }, django_version)
+    local(_interpolate('cp %(project)s/wsgi_%(environment)s.py %(project)s/wsgi.py'))
 
 def apache_restart():
     """
@@ -432,12 +434,15 @@ def setup_project():
     _require_environment()
 
     # Checks if needed conf files for this environment already exist
-    if not os.path.exists(_interpolate('%(settings)s.py')):
-        abort(_interpolate('There is no settings.py for %(environment)s - create one, and commit'))
-    if not os.path.exists(_interpolate('config/apache_%(environment)s.conf')):
-        abort(_interpolate('There is no Apache conf for %(environment)s - use task "generate_apache_conf" to generate one, and commit'))
-    if not os.path.exists(_interpolate('config/wsgi_%(environment)s.py')):
-        abort(_interpolate('There is no WSGI conf for %(environment)s - use task "generate_wsgi_conf" to generate one, and commit'))
+    settings_file = _interpolate('%(project)s/%(settings)s.py')
+    apache_file   = _interpolate('%(project)s/apache_%(environment)s.conf')
+    wsgi_file     = _interpolate('%(project)s/wsgi_%(environment)s.py')
+    if not os.path.exists(settings_file):
+        abort('There is no %s - create one, and commit' % settings_file)
+    if not os.path.exists(apache_file):
+        abort('There is no Apache conf %s - use task "generate_apache_conf" to generate one, and commit' % apache_file)
+    if not os.path.exists(wsgi_file):
+        abort('There is no WSGI conf %s - use task "generate_wsgi_conf" to generate one, and commit' % wsgi_file)
 
     # Configures virtualenv and clones git repo
     _setup_virtualenv()
