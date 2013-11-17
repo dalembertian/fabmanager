@@ -237,33 +237,123 @@ def install_mysql():
     with settings(warn_only=True):
         sudo('mysqladmin -u root password %s' % password)
 
-def _drop_database_mysql():
-    """Destroy (DROP) MySQL database according to env's settings.py"""
-    # Unless explicitly provided, uses local Django settings to
-    # extract username/password to access remote database
+def _get_database_name():
+    """Gets database dictionary either from ENVS or form Django settings.py"""
+    _require_environment()
     database = env.project.get('database', None)
     if not database:
         django.settings_module(_interpolate('%(project)s.%(settings)s'))
         database = django_settings.DATABASES['default']
+    return database
 
-    # Drops database
+def _database_exists():
+    """Checks for existence of database"""
+    _require_environment()
+    database = _get_database_name()
     with settings(hide('warnings'), warn_only=True):
-        result = run(MYSQL_PREFIX % "\"DROP DATABASE %(NAME)s;\"" % database)
+        result = run(MYSQL_PREFIX % "\"SHOW DATABASES LIKE '%(NAME)s';\"" % database)
+        if database['NAME'] in result:
+            return True
+        else:
+            print('Database %(NAME)s does not exist' % database)
+            return False
 
-def _setup_project_mysql():
-    """Creates MySQL database according to env's settings.py"""
-    # Unless explicitly provided, uses local Django settings to
-    # extract username/password to access remote database
-    database = env.project.get('database', None)
-    if not database:
-        django.settings_module(_interpolate('%(project)s.%(settings)s'))
-        database = django_settings.DATABASES['default']
+def drop_database():
+    """CAREFUL! - Destroys (DROP) MySQL database according to env's settings.py"""
+    _require_environment()
+    database = _get_database_name()
+    if _database_exists():
+        if console.confirm('ATTENTION! This will destroy current database! Confirm?', default=False):
+            with settings(hide('warnings'), warn_only=True):
+                result = run(MYSQL_PREFIX % "\"DROP DATABASE %(NAME)s;\"" % database)
 
-    # Create database & user, if not already there
+def create_database():
+    """Creates MySQL database according to env's settings.py, if not already there"""
+    database = _get_database_name()
     with settings(hide('warnings'), warn_only=True):
         result = run(MYSQL_PREFIX % "\"CREATE DATABASE %(NAME)s DEFAULT CHARACTER SET utf8;\"" % database)
         if result.succeeded:
             run(MYSQL_PREFIX % "\"GRANT ALL ON %(NAME)s.* TO '%(USER)s'@'localhost' IDENTIFIED BY '%(PASSWORD)s';\"" % database)
+
+def backup_database():
+    """
+    Backup server's database and copy tar.gz to local ../backup dir
+    """
+    _require_environment()
+    database = _get_database_name()
+    with prefix(_django_prefix()):
+        with cd(_django_project_dir()):
+            # Creates dir to store backup, avoiding existing similar names
+            dirname = '../backup/%s_%s' % (datetime.date.today().strftime('%Y%m%d'), env.environment)
+            path = dirname
+            index = 0
+            while files.exists(path) or files.exists('%s.tar.gz' % path):
+                index += 1
+                path = '%s.%s' % (dirname, index)
+            run('mkdir -p %s' % path)
+
+            # Backup MySQL
+            run('mysqldump %s -u %s -p%s %s > %s/%s.sql' % (
+                '-h %s' % database['HOST'] if database.get('HOST', None) else '',
+                database['USER'],
+                database['PASSWORD'],
+                database['NAME'],
+                path,
+                env.project['project'],
+            ))
+
+            # Backup extra files
+            extra_backup_files = env.project.get('extra_backup_files', [])
+            for file in extra_backup_files:
+                run('cp -R %s %s/' % (file, path))
+
+            # Create .tar.gz and removes uncompressed files
+            with hide('stdout'):
+                run('tar -czvf %s.tar.gz %s/' % (path, path))
+            run('rm -rf %s/' % path)
+
+            # Download backup?
+            if console.confirm('Download backup?'):
+                return get('%s.tar.gz' % path, '../backup')
+
+def restore_database(filename):
+    """
+    Restore server's database with .sql file contained in filename
+    """
+    _require_environment()
+    database = _get_database_name()
+    with prefix(_django_prefix()):
+        with cd(_django_project_dir()):
+            # Uploads tar file
+            tarfile = os.path.basename(filename)
+            basename = tarfile[:tarfile.index('.tar.gz')]
+            if console.confirm('Upload backup?'):
+                put(filename, '../backup/%s' % tarfile)
+
+            # Drop and recreate current database
+            drop_database()
+            create_database()
+
+            # Restore MySQL
+            # To avoid silly mistakes, instead of using project's user & password, uses root's
+            with cd('../'):
+                run('tar -xzvf backup/%s' % tarfile)
+                run('mysql -u root -p %s < backup/%s/%s.sql' % (
+                    #database['USER'],
+                    #database['PASSWORD'],
+                    database['NAME'],
+                    basename,
+                    env.project['project'],
+                ))
+
+            # Restore extra files
+            extra_backup_files = env.project.get('extra_backup_files', [])
+            for file in extra_backup_files:
+                run('cp -R ../backup/%s/%s ./%s' % (basename, os.path.basename(file), os.path.dirname(file)))
+
+            # Removes uncompressed files, but leaves .tar.gz
+            run('rm -rf ../backup/%s' % basename)
+
 
 ###################
 # Apache commands #
@@ -274,7 +364,7 @@ def install_apache():
     apt_get_update()
     sudo ('apt-get -y -qq install apache2 apache2-mpm-worker libapache2-mod-wsgi')
 
-def _setup_project_apache():
+def setup_apache():
     """Configures Apache"""
     if files.exists(_interpolate('/etc/apache2/sites-enabled/%(virtualenv)s.conf')):
         print 'Apache conf for %(environment)s already exists' % env
@@ -451,11 +541,15 @@ def setup_project():
     extra_commands()
 
     # Sets up Apache, MySQL
-    _setup_project_apache()
-    _drop_database_mysql()
-    _setup_project_mysql()
+    setup_apache()
+    if _database_exists():
+        database = _get_database_name()
+        print 'Database %(NAME)s already exists' % database
+    else:
+        drop_database()
+        create_database()
 
-    # Finish installation
+    # Install Python packages & Django
     pip_install()
     update_project()
 
@@ -498,110 +592,10 @@ def update_project():
             run('git checkout %s' % branch)
             with settings(hide('warnings'), warn_only=True):
                 run('git pull origin %s' % branch)
-                run('django-admin.py syncdb --noinput')
+                run('django-admin.py syncdb')
                 run('django-admin.py migrate')
                 run('touch %s/wsgi*' % env.project['project'])
                 run('django-admin.py collectstatic --noinput')
-
-def backup_project():
-    """
-    Backup server's database and copy tar.gz to local ../backup dir
-    """
-    _require_environment()
-
-    # Unless explicitly provided, uses local Django settings to
-    # extract username/password to access remote database
-    database = env.project.get('database', None)
-    if not database:
-        django.settings_module(_interpolate('%(project)s.%(settings)s'))
-        database = django_settings.DATABASES['default']
-
-    # Remote side
-    with prefix(_django_prefix()):
-        with cd(_django_project_dir()):
-            # Creates dir to store backup, avoiding existing similar names
-            dirname = '../backup/%s_%s' % (datetime.date.today().strftime('%Y%m%d'), env.environment)
-            path = dirname
-            index = 0
-            while files.exists(path) or files.exists('%s.tar.gz' % path):
-                index += 1
-                path = '%s.%s' % (dirname, index)
-            run('mkdir -p %s' % path)
-
-            # Backup MySQL
-            run('mysqldump %s -u %s -p%s %s > %s/%s.sql' % (
-                '-h %s' % database['HOST'] if database.get('HOST', None) else '',
-                database['USER'],
-                database['PASSWORD'],
-                database['NAME'],
-                path,
-                env.project['project'],
-            ))
-
-            # Backup extra files
-            extra_backup_files = env.project.get('extra_backup_files', [])
-            for file in extra_backup_files:
-                run('cp -R %s %s/' % (file, path))
-
-            # Create .tar.gz and removes uncompressed files
-            with hide('stdout'):
-                run('tar -czvf %s.tar.gz %s/' % (path, path))
-            run('rm -rf %s/' % path)
-
-            # Download backup?
-            if console.confirm('Download backup?'):
-                return get('%s.tar.gz' % path, '../backup')
-
-def restore_project(filename):
-    """
-    Restore server's database with .sql file contained in filename
-    """
-    _require_environment()
-
-    # Confirms action
-    if not console.confirm('ATTENTION! This will destroy current database! Confirm?', default=False):
-        return
-
-    # Unless explicitly provided, uses local Django settings to
-    # extract username/password to access remote database
-    database = env.project.get('database', None)
-    if not database:
-        django.settings_module(_interpolate('%(project)s.%(settings)s'))
-        database = django_settings.DATABASES['default']
-
-    # Remote side
-    with prefix(_django_prefix()):
-        with cd(_django_project_dir()):
-            # Uploads tar file
-            tarfile = os.path.basename(filename)
-            basename = tarfile[:tarfile.index('.tar.gz')]
-            if console.confirm('Upload backup?'):
-                put(filename, '../backup/%s' % tarfile)
-
-            # Drop and recreate current database
-            _drop_database_mysql()
-            _setup_project_mysql()
-
-            # Restore MySQL
-            # To avoid silly mistakes, instead of using project's user & password, uses root's
-            with cd('../'):
-                run('tar -xzvf backup/%s' % tarfile)
-                run('mysql -u root -p %s < backup/%s/%s.sql' % (
-                    #database['USER'],
-                    #database['PASSWORD'],
-                    database['NAME'],
-                    basename,
-                    env.project['project'],
-                ))
-
-            # Restore extra files
-            extra_backup_files = env.project.get('extra_backup_files', [])
-            for file in extra_backup_files:
-                run('cp -R ../backup/%s/%s ./%s' % (basename, os.path.basename(file), os.path.dirname(file)))
-
-            # Removes uncompressed files, but leaves .tar.gz
-            run('rm -rf ../backup/%s' % basename)
-
 
 def check_log():
     """
