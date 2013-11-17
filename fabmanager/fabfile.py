@@ -51,12 +51,11 @@ MEDIA_DIR           = '%(workon)s/%(virtualenv)s/%(project)s/media'
 STATIC_DIR          = '%(workon)s/%(virtualenv)s/%(project)s/static'
 FAVICON_DIR         = '%(workon)s/%(virtualenv)s/%(project)s/static/images'
 APACHE_CONF         = CONFIG_DIR+'/apache_%(environment)s.conf'
-WSGI_CONF           = CONFIG_DIR+'/wsgi_%(environment)s.py'
 
 # MySQL
 MYSQL_PREFIX        = 'mysql -u root -p -e %s'
 
-PIP_INSTALL_PREFIX  = 'pip install -r config/required-packages.pip'
+PIP_INSTALL_PREFIX  = 'pip install -r %(project)s/required-packages.pip'
 
 # Aliases for common tasks at server
 ALIASES = dict(
@@ -244,7 +243,7 @@ def _drop_database_mysql():
     # extract username/password to access remote database
     database = env.project.get('database', None)
     if not database:
-        django.settings_module(env.project['settings'])
+        django.settings_module(_interpolate('%(project)s.%(settings)s'))
         database = django_settings.DATABASES['default']
 
     # Drops database
@@ -257,7 +256,7 @@ def _setup_project_mysql():
     # extract username/password to access remote database
     database = env.project.get('database', None)
     if not database:
-        django.settings_module(env.project['settings'])
+        django.settings_module(_interpolate('%(project)s.%(settings)s'))
         database = django_settings.DATABASES['default']
 
     # Create database & user, if not already there
@@ -465,7 +464,7 @@ def pip_install():
     Uses pip to install needed requirements
     """
     _require_environment()
-    remote(PIP_INSTALL_PREFIX)
+    remote(_interpolate(PIP_INSTALL_PREFIX))
 
 def touch_project():
     """
@@ -501,7 +500,7 @@ def update_project():
                 run('git pull origin %s' % branch)
                 run('django-admin.py syncdb --noinput')
                 run('django-admin.py migrate')
-                run('touch config/wsgi*')
+                run('touch %s/wsgi*' % env.project['project'])
                 run('django-admin.py collectstatic --noinput')
 
 def backup_project():
@@ -514,7 +513,7 @@ def backup_project():
     # extract username/password to access remote database
     database = env.project.get('database', None)
     if not database:
-        django.settings_module(env.project['settings'])
+        django.settings_module(_interpolate('%(project)s.%(settings)s'))
         database = django_settings.DATABASES['default']
 
     # Remote side
@@ -567,7 +566,7 @@ def restore_project(filename):
     # extract username/password to access remote database
     database = env.project.get('database', None)
     if not database:
-        django.settings_module(env.project['settings'])
+        django.settings_module(_interpolate('%(project)s.%(settings)s'))
         database = django_settings.DATABASES['default']
 
     # Remote side
