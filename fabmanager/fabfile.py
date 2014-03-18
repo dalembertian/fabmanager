@@ -155,12 +155,13 @@ def _vagrant():
 # Linux commands #
 ##################
 
-def adduser():
+def adduser(username, password):
     """Creates remote user with the designated user for environment (default: local user), and uploads ~/.ssh/id_rsa.pub as authorized_keys"""
     _require_environment()
 
     # New user to be created
-    env.remote_user = env.user
+    env.remote_user = username
+    env.remote_password = password
     env.remote_home = '/home/%s' % env.user
 
     # Connects as root (or sudoer)
@@ -171,9 +172,8 @@ def adduser():
     if files.exists(env.remote_home):
         print 'User %(remote_user)s already exists on %(environment)s!' % env
     else:
-        # TODO: generate password -p%(remote_password)s with [m]crypt
         sudo('useradd -d%(remote_home)s -s/bin/bash -m -U %(remote_user)s' % env)
-        sudo('passwd %(remote_user)s' % env)
+        sudo('echo "%(remote_user)s:%(remote_password)s" | sudo chpasswd')
         # TODO: not all distributions use group sudo for sudoers (e.g.: old Ubuntu uses admin)
         # TODO: sudoers should not have to use password
         sudo('adduser %(remote_user)s sudo' % env)
