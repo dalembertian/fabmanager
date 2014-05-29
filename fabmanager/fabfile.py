@@ -156,16 +156,16 @@ def _vagrant():
 ##################
 
 def adduser(username, password):
-    """Creates remote user with the designated user for environment (default: local user), and uploads ~/.ssh/id_rsa.pub as authorized_keys"""
+    """Creates remote user, and uploads ~/.ssh/id_rsa.pub as authorized_keys"""
     _require_environment()
 
     # New user to be created
     env.remote_user = username
     env.remote_password = password
-    env.remote_home = '/home/%s' % env.user
+    env.remote_home = '/home/%(remote_user)s' % env
 
     # Connects as root (or sudoer)
-    env.user = prompt('Remote root?', default='root')
+    env.user = prompt('Remote root or sudoer?', default='root')
     env.password = None
 
     # Creates user, if it doesn't exist already
@@ -173,7 +173,7 @@ def adduser(username, password):
         print 'User %(remote_user)s already exists on %(environment)s!' % env
     else:
         sudo('useradd -d%(remote_home)s -s/bin/bash -m -U %(remote_user)s' % env)
-        sudo('echo "%(remote_user)s:%(remote_password)s" | sudo chpasswd')
+        sudo('echo "%(remote_user)s:%(remote_password)s" | sudo chpasswd' % env)
         # TODO: not all distributions use group sudo for sudoers (e.g.: old Ubuntu uses admin)
         # TODO: sudoers should not have to use password
         sudo('adduser %(remote_user)s sudo' % env)
@@ -223,6 +223,27 @@ def hostname(name):
     files.sed('/etc/hosts', '.*', '127.0.0.1 %s' % name, limit='^127.0.0.1 ', use_sudo=True)
     sudo('mv /etc/hostname /etc/hostname.bak && echo %s > /etc/hostname' % name)
     sudo('hostname %s' % name)
+
+def check_cpu():
+    """Check CPU usage"""
+    with settings(warn_only=True):
+        run('mpstat')
+        run('ps -eo pcpu,pid,user,args | sort -k 1 -r | head -10')
+
+def check_memory():
+    """Check memory usage"""
+    with settings(warn_only=True):
+        run('free -m')
+
+def check_disk():
+    """Check disk usage"""
+    with settings(warn_only=True):
+        run('df -h')
+
+def check_io():
+    """Check I/O statistics"""
+    with settings(warn_only=True):
+        run('iostat')
 
 
 ##################
