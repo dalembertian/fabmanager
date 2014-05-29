@@ -222,6 +222,27 @@ def hostname(name):
     sudo('mv /etc/hostname /etc/hostname.bak && echo %s > /etc/hostname' % name)
     sudo('hostname %s' % name)
 
+def check_cpu():
+    """Check CPU usage"""
+    with settings(warn_only=True):
+        run('mpstat')
+        run('ps -eo pcpu,pid,user,args | sort -k 1 -r | head -10')
+
+def check_memory():
+    """Check memory usage"""
+    with settings(warn_only=True):
+        run('free -m')
+
+def check_disk():
+    """Check disk usage"""
+    with settings(warn_only=True):
+        run('df -h')
+
+def check_io():
+    """Check I/O statistics"""
+    with settings(warn_only=True):
+        run('iostat')
+
 
 ##################
 # MySQL commands #
