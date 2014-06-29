@@ -99,7 +99,7 @@ def _interpolate(string):
 def _parse_alias(command):
     """
     Mimics a bash alias: if command starts with a word that is present in ALIASES
-    dictionary, substitutes that word for the value found, and maintains te rest.
+    dictionary, substitutes that word for the value found, and maintains the rest.
     """
     words = command.split(' ')
     if not words or words[0] not in ALIASES.keys():
@@ -528,9 +528,7 @@ def extra_commands():
             remote(command)
 
 def remote(command):
-    """
-    Issues a generic command at project's directory level
-    """
+    """Issues a generic command at project's directory level"""
     _require_environment()
     with prefix(_django_prefix()):
         with cd(_django_project_dir()):
@@ -575,28 +573,20 @@ def setup_project():
     update_project()
 
 def pip_install():
-    """
-    Uses pip to install needed requirements
-    """
+    """Uses pip to install needed requirements"""
     _require_environment()
     remote(_interpolate(PIP_INSTALL_PREFIX))
 
 def touch_project():
-    """
-    Touches WSGI file to reset Apache
-    """
+    """Touches WSGI file to reset Apache"""
     remote('touch config/wsgi*')
 
 def status_project():
-    """
-    Checks git log and status
-    """
+    """Checks git log and status"""
     remote('glogg -n 20 && echo "" && git status')
 
 def update_project():
-    """
-    Updates server from git pull
-    """
+    """Updates server from git pull"""
     _require_environment()
 
     # Grants write rights on log dir for the admin group
@@ -619,9 +609,7 @@ def update_project():
                 run('django-admin.py collectstatic --noinput')
 
 def check_log():
-    """
-    Tails Django log
-    """
+    """Tails Django log"""
     _require_environment()
     with prefix(_django_prefix()):
         with cd(_django_project_dir()):
@@ -630,9 +618,7 @@ def check_log():
 
 
 def find_in_log(string):
-    """
-    Finds string parameter in Django logs
-    """
+    """Finds string parameter in Django logs"""
     _require_environment()
     with prefix(_django_prefix()):
         with cd(_django_project_dir()):
