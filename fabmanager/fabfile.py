@@ -385,10 +385,10 @@ def install_apache():
 
 def setup_apache():
     """Configures Apache"""
-    if files.exists(_interpolate('/etc/apache2/sites-enabled/%(virtualenv)s')):
+    if files.exists(_interpolate('/etc/apache2/sites-enabled/%(virtualenv)s.conf')):
         print 'Apache conf for %(environment)s already exists' % env
     else:
-        sudo(_interpolate('ln -s %s /etc/apache2/sites-enabled/%%(virtualenv)s' % APACHE_CONF))
+        sudo(_interpolate('ln -s %s /etc/apache2/sites-enabled/%%(virtualenv)s.conf' % APACHE_CONF))
         sudo('apache2ctl restart')
 
 def generate_apache_conf():
