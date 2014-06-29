@@ -154,7 +154,7 @@ def _vagrant():
 ##################
 
 def adduser(username, password):
-    """Creates remote user, and uploads ~/.ssh/id_rsa.pub as authorized_keys"""
+    """Creates remote user (with required username/password) and uploads ~/.ssh/id_rsa.pub as authorized_keys"""
     _require_environment()
 
     # New user to be created
@@ -162,8 +162,8 @@ def adduser(username, password):
     env.remote_password = password
     env.remote_home = '/home/%(remote_user)s' % env
 
-    # Connects as root (or sudoer)
-    env.user = prompt('Remote root or sudoer?', default='root')
+    # Needs to connect as root (or sudoer)
+    env.user = prompt('Remote root or sudoer?', default=env.user)
     env.password = None
 
     # Creates user, if it doesn't exist already
@@ -639,11 +639,11 @@ def find_in_log(string):
 # The Big Bootstrap #
 #####################
 
-def bootstrap():
-    """Installs EVERYTHING from scratch!"""
+def bootstrap(username, password):
+    """Installs EVERYTHING from scratch! Requires username/password definition for remote user"""
     _require_environment()
 
-    adduser()
+    adduser(username, password)
     hostname(env.project['project'])
     install_python()
     install_git()
