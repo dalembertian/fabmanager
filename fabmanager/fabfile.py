@@ -26,7 +26,7 @@ templates_dir  = os.path.join(fabmanager_dir, 'templates/fabmanager/')
 ENVS = {}
 
 # Linux
-NEWEST_GIT_VERSION  = "curl -s http://git-scm.com/ | grep \"class='version'\" | perl -pe 's/.*?([0-9\.]+)<.*/$1/'"
+NEWEST_GIT_VERSION  = "curl -s http://git-scm.com/ | python -c \"import sys; from bs4 import BeautifulSoup; soup=BeautifulSoup(''.join(sys.stdin.readlines())); print soup.find(class_='version').text.strip()\""
 LOCAL_GIT_VERSION   = "git --version | cut -d ' ' -f 3"
 
 # Python
@@ -197,7 +197,7 @@ def install_git():
         sudo('apt-get -y -qq install gettext')
         sudo('apt-get -y -qq install libz-dev')
         sudo('apt-get -y -qq install libssl-dev')
-        sudo('wget --quiet http://git-core.googlecode.com/files/%s.tar.gz' % git_file)
+        sudo('wget --quiet https://www.kernel.org/pub/software/scm/git/%s.tar.gz' % git_file)
         sudo('tar -xzf %s.tar.gz' % git_file)
         with cd(git_file):
             sudo('make --silent prefix=/usr/local all > /dev/null')
@@ -443,7 +443,7 @@ def install_python():
     # TODO: Install Python from source, regardless of Linux distribution
     apt_get_update()
     sudo('apt-get -y -qq install python python2.7 python2.7-dev pkg-config gcc')
-    sudo('apt-get -y -qq install python-setuptools')
+    sudo('apt-get -y -qq install python-setuptools python-bs4')
     sudo('easy_install pip')
     sudo('pip install virtualenv')
     sudo('pip install virtualenvwrapper')
