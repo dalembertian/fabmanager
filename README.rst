@@ -27,12 +27,13 @@ Fabmanager expects the following:
   * Apache     2.4
   * MySQL      5.5 (maybe >= 5.0 is OK)
   * mod_wsgi   3.4
-  * Django     1.6 (maybe >= 1.4 is OK)
+  * Django     1.6 (maybe >= 1.4 is OK [2])
   * South      0.8
   * Fabric     1.8
   * pip, virtualenv, virtualenvwrapper
 
 [1] Fabric is a Python tool for application deployment and systems administration over SSH
+[2] There is a branch called "django1.3" that's compatible with Django 1.3. I've then jumped directly to Django 1.6, but I believe the new directory structure was introduced in Django 1.4, so the master branch should probably work with Django 1.4 or higher - I only tested it with Django 1.6, though.
 
 
 .. _fabmanager-contents:
@@ -51,7 +52,11 @@ Installation
 
 Currently fabmanager should be installed from source. The easiest way is using pip::
 
-    $ pip install [-e] git+git://github.com/dalembertian/fabmanager.git
+    Django 1.4+:
+    $ pip install [-e] git+https://github.com/dalembertian/fabmanager.git
+
+    Django 1.3:
+    $ pip install [-e] git+https://github.com/dalembertian/fabmanager.git@django1.3
 
 The option -e asks pip to install the complete source files. It can also be installed by first cloning the repository and then running setup.py, or even pip::
 
