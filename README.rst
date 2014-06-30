@@ -33,6 +33,7 @@ Fabmanager expects the following:
   * pip, virtualenv, virtualenvwrapper
 
 [1] Fabric is a Python tool for application deployment and systems administration over SSH
+
 [2] There is a branch called "django1.3" that's compatible with Django 1.3. I've then jumped directly to Django 1.6, but I believe the new directory structure was introduced in Django 1.4, so the master branch should probably work with Django 1.4 or higher - I only tested it with Django 1.6, though.
 
 
