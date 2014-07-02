@@ -80,14 +80,12 @@ Instructions
     from fabmanager import fabfile
     from fabmanager.fabfile import *
 
-* Extend (do not replace!) the ENVS dictionary. See below for a complete description of all possible entries.
+* Extend (do not replace!) the ENVS dictionary. See below for an example and the complete description of all possible entries.
 
-* Define tasks for each environment, that can be specified in the command line (e.g.: fab myenv update)::
+* Create tasks for each environment you defined in ENVS, so that they can be specified in the command line (e.g.: fab myenv task)::
 
     def myenv():
         fabfile._setup_environment('myenv')
-
-* Revise other configuration strings, and override them if needed
 
 * That's it!
 
