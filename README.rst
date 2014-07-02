@@ -124,6 +124,7 @@ Below is the complete list of parameters. Starred items are usually mandatory::
     extra_commands      List of commands to be issued at the project's dir level, during setup, after git clone
     extra_backup_files  List of extra files, besides the database SQL dump, that should go into a backup (from project' dir level)
 
+See also the `sample fabfile.py <https://github.com/dalembertian/fabmanager/blob/master/fabmanager/samples/fabfile.py>`_ provided.
 
 .. _fabmanager-todo:
 
