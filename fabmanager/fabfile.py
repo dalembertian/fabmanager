@@ -48,7 +48,6 @@ DJANGO_PREFIX       = "export PYTHONPATH=%(workon)s/%(virtualenv)s:%(workon)s/%(
 CONFIG_DIR          = '%(workon)s/%(virtualenv)s/%(project)s/config'
 MEDIA_DIR           = '%(workon)s/%(virtualenv)s/%(project)s/media'
 STATIC_DIR          = '%(workon)s/%(virtualenv)s/%(project)s/static'
-FAVICON_DIR         = '%(workon)s/%(virtualenv)s/%(project)s/static/images'
 APACHE_CONF         = CONFIG_DIR+'/apache_%(environment)s.conf'
 WSGI_CONF           = CONFIG_DIR+'/wsgi_%(environment)s.py'
 
@@ -408,9 +407,8 @@ def generate_apache_conf():
         'static_admin_dir': '%s/%s/django/contrib/admin/media' % (_interpolate(VIRTUALENV_DIR), SITE_PACKAGES_DIR % _get_python_version()),
         'media_dir':        _interpolate(MEDIA_DIR),
         'static_dir':       _interpolate(STATIC_DIR),
-        'favicon_dir':      _interpolate(FAVICON_DIR),
         'config_dir':       config_dir,
-        'wsgi_file':        '%s/wsgi_%s.py' % (config_dir, env.environment),
+        'wsgi_file':         'wsgi_%s.py' % env.environment,
         }
     _generate_conf('apache.conf', variables)
 
