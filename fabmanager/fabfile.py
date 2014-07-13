@@ -580,7 +580,7 @@ def touch_project():
     """
     Touches WSGI file to reset Apache
     """
-    remote('touch config/wsgi*')
+    remote(_interpolate('touch %s' % WSGI_CONF))
 
 def status_project():
     """
@@ -610,7 +610,7 @@ def update_project():
                 run('git pull origin %s' % branch)
                 run('django-admin.py syncdb')
                 run('django-admin.py migrate')
-                run('touch config/wsgi*')
+                run(_interpolate('touch %s' % WSGI_CONF))
                 run('django-admin.py collectstatic --noinput')
 
 def check_log():
