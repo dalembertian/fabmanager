@@ -411,7 +411,6 @@ def generate_apache_conf(django_version=None):
         'project_dir':       _interpolate(DJANGO_PROJECT_DIR),
         'media_dir':         _interpolate(MEDIA_DIR),
         'static_dir':        _interpolate(STATIC_DIR),
-        'favicon_dir':       _interpolate(FAVICON_DIR),
         'config_dir':        config_dir,
         'wsgi_file':         'wsgi_%s.py' % env.environment,
     }, django_version)
