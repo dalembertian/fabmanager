@@ -50,6 +50,7 @@ CONFIG_DIR          = '%(workon)s/%(virtualenv)s/%(project)s/%(project)s'
 MEDIA_DIR           = '%(workon)s/%(virtualenv)s/%(project)s/media'
 STATIC_DIR          = '%(workon)s/%(virtualenv)s/%(project)s/static'
 APACHE_CONF         = CONFIG_DIR+'/apache_%(environment)s.conf'
+WSGI_CONF           = CONFIG_DIR+'/wsgi_%(environment)s.py'
 
 # MySQL
 MYSQL_PREFIX        = 'mysql -u root -p -e %s'
@@ -578,7 +579,7 @@ def pip_install():
 
 def touch_project():
     """Touches WSGI file to reset Apache"""
-    remote('touch config/wsgi*')
+    remote(_interpolate('touch %s' % WSGI_CONF))
 
 def status_project():
     """Checks git log and status"""
@@ -604,7 +605,7 @@ def update_project():
                 run('git pull origin %s' % branch)
                 run('django-admin.py syncdb')
                 run('django-admin.py migrate')
-                run('touch %s/wsgi*' % env.project['project'])
+                run(_interpolate('touch %s' % WSGI_CONF))
                 run('django-admin.py collectstatic --noinput')
 
 def check_log():
