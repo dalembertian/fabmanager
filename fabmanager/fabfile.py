@@ -49,7 +49,6 @@ DJANGO_PREFIX            = "export PYTHONPATH=%(workon)s/%(virtualenv)s:%(workon
 CONFIG_DIR          = '%(workon)s/%(virtualenv)s/%(project)s/%(project)s'
 MEDIA_DIR           = '%(workon)s/%(virtualenv)s/%(project)s/media'
 STATIC_DIR          = '%(workon)s/%(virtualenv)s/%(project)s/static'
-FAVICON_DIR         = '%(workon)s/%(virtualenv)s/%(project)s/static/images'
 APACHE_CONF         = CONFIG_DIR+'/apache_%(environment)s.conf'
 
 # MySQL
@@ -414,7 +413,7 @@ def generate_apache_conf(django_version=None):
         'static_dir':        _interpolate(STATIC_DIR),
         'favicon_dir':       _interpolate(FAVICON_DIR),
         'config_dir':        config_dir,
-        'wsgi_file':         '%s/wsgi_%s.py' % (config_dir, env.environment),
+        'wsgi_file':         'wsgi_%s.py' % env.environment,
     }, django_version)
 
 def generate_wsgi_conf(django_version=None):
