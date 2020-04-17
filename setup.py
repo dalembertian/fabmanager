@@ -4,7 +4,7 @@ import sys
 import os
 import re
 
-from setuptools import setup, find_packages
+import setuptools
 
 def read(fname):
     """Reads an entire file and returns it as a single string"""
@@ -20,28 +20,29 @@ def get_version(package):
         re.MULTILINE
     ).group(1)
 
-# Setup parameters that depend on the Python version
-extra = {}
-if sys.version_info >= (3,):
-    extra['use_2to3'] = True
-    #extra['convert_2to3_doctests'] = ['src/your/module/README.txt']
-    #extra['use_2to3_fixers'] = ['your.fixers']
+with open("README.md", "r") as fh:
+    long_description = fh.read()
 
-setup(
+setuptools.setup(
     name='fabmanager',
     version=get_version('fabmanager'),
-    packages=find_packages(),
+    author='Rubens Altimari',
+    author_email='rubens@altimari.nl',
+    description='Extra commands on top of Fabric to help managing Django projects in production environments',
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url='https://github.com/dalembertian/fabmanager',
+
+    packages=setuptools.find_packages(),
     include_package_data=True,
     zip_safe=False,
-
-    author='Rubens Altimari',
-    author_email='rubens@altimari.com.br',
-    description='Standard (fabric) fabfile.py to be used by Introspection Software projects',
-    license='BSD',
-    url='https://github.com/raltimari/fabmanager',
-    long_description=read('README.rst'),
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+     ],
     install_requires = [
         'fabric',
     ],
-    **extra
+    python_requires='>=3.6',
 )
