@@ -20,7 +20,7 @@ def get_version(package):
         re.MULTILINE
     ).group(1)
 
-with open("README.md", "r") as fh:
+with open("README.rst", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
@@ -30,7 +30,7 @@ setuptools.setup(
     author_email='rubens@altimari.nl',
     description='Extra commands on top of Fabric to help managing Django projects in production environments',
     long_description=long_description,
-    long_description_content_type="text/markdown",
+    # long_description_content_type="text/markdown",
     url='https://github.com/dalembertian/fabmanager',
 
     packages=setuptools.find_packages(),
