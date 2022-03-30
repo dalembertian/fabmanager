@@ -6,13 +6,12 @@ import urllib
 
 import os
 import datetime
-# import cStringIO
+import io
 
-from fabric import task
-# from fabric.api import *
-# from fabric.contrib import django
-# from fabric.contrib import files
-# from fabric.contrib import console
+from fabric.api import *
+from fabric.contrib import django
+from fabric.contrib import files
+from fabric.contrib import console
 
 try:
     from django.conf import settings as django_settings
@@ -26,18 +25,8 @@ templates_dir  = os.path.join(fabmanager_dir, 'templates/fabmanager/')
 # Environments - to be extended with ENVS.update()
 ENVS = {}
 
-# FIXME
-class LegacyEnvironment:
-    forward_agent = True
-    environment   = ''
-    project       = {}
-    hosts         = []
-    user          = ''
-    password      = ''
-env = LegacyEnvironment()
-
 # Linux
-NEWEST_GIT_VERSION  = "curl -s http://git-scm.com/ | python -c \"import sys; from bs4 import BeautifulSoup; soup=BeautifulSoup(''.join(sys.stdin.readlines())); print soup.find(class_='version').text.strip()\""
+NEWEST_GIT_VERSION  = "curl -s http://git-scm.com/ | python -c \"import sys; from bs4 import BeautifulSoup; soup=BeautifulSoup(''.join(sys.stdin.readlines())); print(soup.find(class_='version').text.strip())\""
 LOCAL_GIT_VERSION   = "git --version | cut -d ' ' -f 3"
 
 # Python
@@ -131,7 +120,7 @@ def _generate_conf(conf_file, variables, django_version):
 
     # Generate conf file from template
     conf = ''
-    output = cStringIO.StringIO()
+    output = io.StringIO()
     try:
         with open(input_file, 'r') as input:
             for line in input:
@@ -141,7 +130,7 @@ def _generate_conf(conf_file, variables, django_version):
         output.close()
 
     # Shows conf file and optionally saves it
-    print (conf)
+    print(conf)
     if console.confirm('Save to %s?' % output_file, default=False):
         with open(output_file, 'w') as output:
             output.write(conf)
@@ -182,7 +171,7 @@ def adduser(username, password):
 
     # Creates user, if it doesn't exist already
     if files.exists(env.remote_home):
-        print ('User %(remote_user)s already exists on %(environment)s!' % env)
+        print('User %(remote_user)s already exists on %(environment)s!' % env)
     else:
         sudo('useradd -d%(remote_home)s -s/bin/bash -m -U %(remote_user)s' % env)
         sudo('echo "%(remote_user)s:%(remote_password)s" | sudo chpasswd' % env)
@@ -190,8 +179,7 @@ def adduser(username, password):
         # TODO: sudoers should not have to use password
         sudo('adduser %(remote_user)s sudo' % env)
         sudo('mkdir %(remote_home)s/.ssh' % env)
-        # FIXME
-        # put('~/.ssh/id_rsa.pub', '%(remote_home)s/.ssh/authorized_keys' % env, use_sudo=True, mode=0644)
+        put('~/.ssh/id_rsa.pub', '%(remote_home)s/.ssh/authorized_keys' % env, use_sudo=True, mode=0o644)
         sudo('chown -R %(remote_user)s:%(remote_user)s %(remote_home)s/.ssh' % env)
 
     # Continues as newly created user
@@ -401,7 +389,7 @@ def install_apache():
 def setup_apache():
     """Configures Apache"""
     if files.exists(_interpolate('/etc/apache2/sites-enabled/%(virtualenv)s.conf')):
-        print ('Apache conf for %(environment)s already exists' % env)
+        print('Apache conf for %(environment)s already exists' % env)
     else:
         sudo(_interpolate('ln -s %s /etc/apache2/sites-enabled/%%(virtualenv)s.conf' % APACHE_CONF))
         sudo('apache2ctl restart')
@@ -489,17 +477,17 @@ def _virtualenvwrapper_prefix():
 def _setup_virtualenv():
     """Creates virtualenv for environment"""
     if files.exists(_interpolate(VIRTUALENV_DIR)):
-        print (_interpolate('virtualenv %(virtualenv)s already exists'))
+        print(_interpolate('virtualenv %(virtualenv)s already exists'))
     else:
         with prefix(_virtualenvwrapper_prefix()):
             run(_interpolate('mkvirtualenv --no-site-packages %(virtualenv)s'))
             with hide('commands'):
-                print ('virtualenv %s created with python %s\n' % (env.project['virtualenv'], run(GET_PYTHON_VERSION)))
+                print('virtualenv %s created with python %s\n' % (env.project['virtualenv'], run(GET_PYTHON_VERSION)))
 
 def python_version():
     """Tries to figure out Python version on server side"""
     _require_environment()
-    print ('Python version on virtualenv %s: %s' % (env.project['virtualenv'], _get_python_version()))
+    print('Python version on virtualenv %s: %s' % (env.project['virtualenv'], _get_python_version()))
 
 #############################
 # (Django) project commands #
@@ -522,7 +510,7 @@ def _clone_gitrepo():
 
     branch = env.project.get('git_branch', 'master')
     if files.exists(_interpolate(DJANGO_PROJECT_DIR)):
-        print (_interpolate('project %(project)s already exists, updating'))
+        print(_interpolate('project %(project)s already exists, updating'))
         remote('git pull origin %s' % branch)
     else:
         with cd(_interpolate(VIRTUALENV_DIR)):
@@ -575,7 +563,7 @@ def setup_project():
     setup_apache()
     if _database_exists():
         database = _get_database_name()
-        print ('Database %(NAME)s already exists' % database)
+        print('Database %(NAME)s already exists' % database)
     else:
         drop_database()
         create_database()
@@ -589,11 +577,9 @@ def pip_install():
     _require_environment()
     remote(_interpolate(PIP_INSTALL_PREFIX))
 
-@task
-def touch_project(c):
+def touch_project():
     """Touches WSGI file to reset Apache"""
-    print(_interpolate('touch %s' % WSGI_CONF))
-    # remote(_interpolate('touch %s' % WSGI_CONF))
+    remote(_interpolate('touch %s' % WSGI_CONF))
 
 def status_project():
     """Checks git log and status"""

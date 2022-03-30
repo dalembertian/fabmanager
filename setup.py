@@ -42,7 +42,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
      ],
     install_requires = [
-        'fabric',
+        'fab-classic',
     ],
     python_requires='>=3.6',
 )
