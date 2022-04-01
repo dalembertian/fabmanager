@@ -258,6 +258,7 @@ def install_mysql():
     sudo('DEBIAN_FRONTEND=noninteractive apt-get -y -qq install mysql-server libmysqlclient-dev')
     with settings(warn_only=True):
         sudo('mysqladmin -u root password %s' % password)
+        sudo(MYSQL_PREFIX % "\"ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '%s';\"" % password)
 
 def _get_database_name():
     """Gets database dictionary either from ENVS or form Django settings.py"""
@@ -296,6 +297,7 @@ def create_database():
         result = run(MYSQL_PREFIX % "\"CREATE DATABASE %(NAME)s DEFAULT CHARACTER SET utf8;\"" % database)
         if result.succeeded:
             run(MYSQL_PREFIX % "\"GRANT ALL ON %(NAME)s.* TO '%(USER)s'@'localhost' IDENTIFIED BY '%(PASSWORD)s';\"" % database)
+            run(MYSQL_PREFIX % "\"ALTER USER '%(USER)s'@'localhost' IDENTIFIED WITH mysql_native_password BY '%(PASSWORD)s';\"" % database)
 
 def backup_database():
     """
