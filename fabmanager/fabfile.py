@@ -603,7 +603,7 @@ def update_project():
             run('git checkout %s' % branch)
             with settings(hide('warnings'), warn_only=True):
                 run('git pull origin %s' % branch)
-                run('django-admin.py syncdb')
+                # run('django-admin.py syncdb') deprecated since Django 1.9
                 run('django-admin.py migrate')
                 run(_interpolate('touch %s' % WSGI_CONF))
                 run('django-admin.py collectstatic --noinput')
