@@ -296,8 +296,9 @@ def create_database():
     with settings(hide('warnings'), warn_only=True):
         result = run(MYSQL_PREFIX % "\"CREATE DATABASE %(NAME)s DEFAULT CHARACTER SET utf8;\"" % database)
         if result.succeeded:
-            run(MYSQL_PREFIX % "\"GRANT ALL ON %(NAME)s.* TO '%(USER)s'@'localhost' IDENTIFIED BY '%(PASSWORD)s';\"" % database)
-            run(MYSQL_PREFIX % "\"ALTER USER '%(USER)s'@'localhost' IDENTIFIED WITH mysql_native_password BY '%(PASSWORD)s';\"" % database)
+            run(MYSQL_PREFIX % "\"CREATE USER '%(USER)s'@'localhost' IDENTIFIED BY '%(PASSWORD)s';\"" % database)
+            run(MYSQL_PREFIX % "\"GRANT ALL ON %(NAME)s.* TO '%(USER)s'@'localhost';\"" % database)
+            # run(MYSQL_PREFIX % "\"ALTER USER '%(USER)s'@'localhost' IDENTIFIED WITH mysql_native_password BY '%(PASSWORD)s';\"" % database)
 
 def backup_database():
     """
