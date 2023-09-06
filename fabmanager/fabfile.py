@@ -69,7 +69,7 @@ ALIASES = dict(
     gm='git checkout master',
     glog='git log --oneline --decorate',
     glogg='git log --oneline --decorate --graph',
-    mng='django-admin.py',
+    mng='django-admin',
 )
 
 ##################
@@ -606,10 +606,10 @@ def update_project():
             run('git checkout %s' % branch)
             with settings(hide('warnings'), warn_only=True):
                 run('git pull origin %s' % branch)
-                # run('django-admin.py syncdb') deprecated since Django 1.9
-                run('django-admin.py migrate')
+                # run('django-admin syncdb') deprecated since Django 1.9
+                run('django-admin migrate')
                 run(_interpolate('touch %s' % WSGI_CONF))
-                run('django-admin.py collectstatic --noinput')
+                run('django-admin collectstatic --noinput')
 
 def check_log():
     """Tails Django log"""
