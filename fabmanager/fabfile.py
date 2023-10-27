@@ -318,7 +318,7 @@ def backup_database():
             run('mkdir -p %s' % path)
 
             # Backup MySQL
-            run('mysqldump %s -u %s -p%s %s > %s/%s.sql' % (
+            run("mysqldump --no-tablespaces %s -u %s -p'%s' %s --no-tablespaces > %s/%s.sql" % (
                 '-h %s' % database['HOST'] if database.get('HOST', None) else '',
                 database['USER'],
                 database['PASSWORD'],
