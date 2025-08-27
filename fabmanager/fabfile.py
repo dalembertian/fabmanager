@@ -522,6 +522,19 @@ def _clone_gitrepo():
                 remote('git fetch origin %s:%s' % (branch, branch))
                 remote('git checkout %s' % branch)
 
+def django_version():
+    """Checks installed Django version"""
+    _require_environment()
+    with settings(hide('commands', 'warnings'), warn_only=True):
+        with prefix(_django_prefix()):
+            with cd(_django_project_dir()):
+                with settings(hide('warnings'), warn_only=True):
+                    result = run('django-admin --version')
+    if result.failed:
+        abort(_interpolate('Could not determine Django version at virtualenv %(virtualenv)s'))
+    else:
+        print('Django version on virtualenv %s: %s' % (env.project['virtualenv'], result))
+
 def extra_commands():
     """Issue commands contained in env.project['EXTRA_COMMANDS']"""
     _require_environment()
