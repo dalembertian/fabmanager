@@ -1,4 +1,4 @@
-include README.rst
-include LICENSE
+include README.md
+include LICENSE.md
 recursive-include fabmanager/templates *
 recursive-include fabmanager/samples *

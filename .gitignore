@@ -1,11 +1,38 @@
-.DS_Store
-.idea/
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.eggs/
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+*.tmp
+.pytest_cache/
+.mypy_cache/
+.tox/
 build/
 dist/
+
+# IDEs
+.DS_Store
+.~*
+.vscode/
+.idea/
 *.swp
-*.egg-info/
-*.egg
-*.py[cod]
-__pycache__/
-*.so
-*~
+*.swo
+
+# Environment
+.env
+.venv
+venv/
+ENV/
+env/
