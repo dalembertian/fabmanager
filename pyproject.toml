@@ -23,7 +23,12 @@ classifiers = [
 Homepage = "https://github.com/dalembertian/fabmanager"
 
 [tool.hatch.build]
-include = ["LICENSE.md", "README.md"]
+include = [
+  "README.md",
+  "LICENSE.md",
+  "fabmanager/templates/**",
+  "fabmanager/samples/**",
+]
 
 [tool.hatch.build.targets.wheel.force-include]
 "fabmanager/samples" = "fabmanager/samples"
